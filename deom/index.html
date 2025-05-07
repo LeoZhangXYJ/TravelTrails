@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅行轨迹追踪器</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div id="cesiumContainer"></div>
+        <div class="media-container">
+            <div id="controls">
+                <input type="text" id="cityInput" placeholder="输入城市名称">
+                <select id="transportMode">
+                    <option value="飞机">飞机</option>
+                    <option value="火车">火车</option>
+                    <option value="汽车">汽车</option>
+                    <option value="轮船">轮船</option>
+                </select>
+                <button id="addCity">添加城市</button>
+                <button id="tourButton" class="control-btn">轨迹浏览</button>
+            </div>
+            
+            <div class="city-list" id="cityList"></div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <h3>已访问城市</h3>
+                    <p id="citiesCount">0</p>
+                </div>
+                <div class="stat-item">
+                    <h3>总距离</h3>
+                    <p id="totalDistance">0 km</p>
+                </div>
+                <div class="stat-item">
+                    <h3>国家数量</h3>
+                    <p id="countriesCount">0</p>
+                </div>
+            </div>
+
+            <div class="media-section">
+                <h3>当前城市照片</h3>
+                <div class="media-actions">
+                    <input type="file" id="photoInput" accept="image/*" multiple>
+                    <button id="uploadPhoto">上传照片</button>
+                </div>
+                <div id="photoGallery"></div>
+            </div>
+
+            <div class="media-section">
+                <h3>旅行记录</h3>
+                <textarea id="blogContent" placeholder="写下你的旅行故事..."></textarea>
+                <div class="media-actions">
+                    <button id="saveBlog">保存记录</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 照片和博客模态框 -->
+    <div id="mediaModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">城市记录</h2>
+            <div class="media-tabs">
+                <button class="tab-btn active" data-tab="photos">照片</button>
+                <button class="tab-btn" data-tab="blog">博客</button>
+            </div>
+            <div id="photosTab" class="tab-content active">
+                <div class="photo-upload">
+                    <input type="file" id="photoInput" accept="image/*" multiple>
+                    <button id="uploadPhoto">上传照片</button>
+                </div>
+                <div id="photoGallery" class="gallery"></div>
+            </div>
+            <div id="blogTab" class="tab-content">
+                <textarea id="blogContent" placeholder="写下你的旅行故事..."></textarea>
+                <button id="saveBlog">保存博客</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
