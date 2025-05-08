@@ -1,0 +1,24 @@
+{
+  "visitedCities": [
+    {
+      "city": "西安",
+      "country": "中国"
+    },
+    {
+      "city": "北京",
+      "country": "中国"
+    },
+    {
+      "city": "罗马",
+      "country": "意大利"
+    },
+    {
+      "city": "雅典",
+      "country": "希腊"
+    },
+    {
+        "city": "孟菲斯",
+        "country": "希腊"
+    }
+  ]
+}
