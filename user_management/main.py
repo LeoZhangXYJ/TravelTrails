@@ -1,0 +1,83 @@
+from fastapi import FastAPI, HTTPException, Query
+from typing import Optional, List
+from user_models import User, UserUpdate, UserLogin
+import uvicorn
+import validator
+import crud
+
+app = FastAPI(title="Ex11") # 创建FastAPI应用实例
+
+@app.get("/") # 注册路由
+def root(): # 路由处理函数
+    return {"message": "欢迎使用用户管理和登录API"}
+
+# 创建用户
+@app.post("/users/", status_code=201) # 注册路由，POST请求
+def create_user(user: User):
+    # 验证用户名、密码、邮箱和年龄
+    validator.validate_username(user.username)
+    validator.validate_password(user.password)
+    validator.validate_email(user.email)
+    validator.validate_age(user.age)
+    # 添加用户
+    try:
+        crud.create_user(user.model_dump())
+    except HTTPException as e:
+        raise e
+    return {"status": "success", "message": "用户创建成功"}
+
+# 获取单个用户
+@app.get("/users/{username}") # 注册路由，GET请求
+def get_single_user(username: str):
+    user = crud.get_user(username)
+    return user
+
+# 获取所有用户，支持过滤和分页
+@app.get("/users")
+def get_users(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, le=100),
+    min_age: Optional[int] = Query(None, ge=0),
+    max_age: Optional[int] = Query(None, ge=0)
+):
+    if min_age is not None and max_age is not None and min_age > max_age:
+        raise HTTPException(status_code=422, detail="min_age不能大于max_age")
+    if min_age is not None and min_age <= 0:
+        raise HTTPException(status_code=422, detail="min_age必须是正整数")
+    if max_age is not None and max_age <= 0:
+        raise HTTPException(status_code=422, detail="max_age必须是正整数")
+    users = crud.get_all_users(offset, limit, min_age, max_age)
+    return users
+
+# 更新用户
+@app.put("/users/{username}")
+def update_user(username: str, user_update: UserUpdate):
+    existing_user = crud.get_user(username)  # 确保存在
+    update_data = user_update.model_dump(exclude_unset=True)
+    # 验证
+    if 'email' in update_data:
+        validator.validate_email(update_data['email'])
+    if 'password' in update_data:
+        validator.validate_password(update_data['password'])
+    if 'age' in update_data:
+        validator.validate_age(update_data['age'])
+    crud.update_user_info(username, update_data)
+    return {"status": "success", "message": "用户信息更新成功"}
+
+# 删除用户
+@app.delete("/users/{username}")
+def delete_user(username: str):
+    crud.delete_user_by_username(username)
+    return {"status": "success", "message": "用户已删除"}
+
+# 登录
+@app.post("/login")
+def login(login_req: UserLogin):
+    # 验证用户名和密码
+    user = crud.get_user(login_req.username)
+    if user['password'] != login_req.password:
+        raise HTTPException(status_code=401, detail="账号或密码错误")
+    return True
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000) # 启动应用，监听8000端口
