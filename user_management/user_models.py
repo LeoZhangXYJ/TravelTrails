@@ -1,11 +1,29 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, HttpUrl, FilePath
+from typing import Optional, List, Dict
+from datetime import datetime
 
+class Photo(BaseModel):
+    data: str  # Base64编码的图片数据
+
+class City(BaseModel):
+    city: str
+    country: str
+    latitude: float
+    longitude: float
+    transport_mode: Optional[str] = None
+    photos: Optional[List[Photo]] = []
+    blog: Optional[str] = None
+    visit_date: Optional[datetime] = None
+
+class TravelTrail(BaseModel):
+    cities: List[City] = []
+    
 class User(BaseModel):
     username: str
     email: EmailStr
     age: Optional[int] = None
     password: str
+    travel_trails: Optional[List[TravelTrail]] = []
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
@@ -16,9 +34,13 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+# 用于城市操作的模型
+class CityCreate(BaseModel):
+    city: str
+    country: str
+    latitude: float
+    longitude: float
+    transport_mode: Optional[str] = None
 
-######
-#用户模型存储不应该是只有这些东西，还要考虑存储的轨迹数据、各个轨迹点的图片、Blog的数据
-#只是说像作业那样,没说完全一样
-#如何存储用户模型，接口设计，参考前端里的数据是如何存储的，然后想出分析他的接口
-######
+class CityUpdate(BaseModel):
+    blog: Optional[str] = None
