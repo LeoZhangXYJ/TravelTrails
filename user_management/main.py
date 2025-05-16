@@ -4,8 +4,12 @@ from user_models import User, UserUpdate, UserLogin
 import uvicorn
 import validator
 import crud
+from travel_routes import router as travel_router
 
-app = FastAPI(title="Ex11") # 创建FastAPI应用实例
+app = FastAPI(title="Travel Trails API")
+
+# 包含旅行轨迹路由
+app.include_router(travel_router)
 
 @app.get("/") # 注册路由
 def root(): # 路由处理函数
@@ -26,28 +30,6 @@ def create_user(user: User):
         raise e
     return {"status": "success", "message": "用户创建成功"}
 
-# 获取单个用户
-@app.get("/users/{username}") # 注册路由，GET请求
-def get_single_user(username: str):
-    user = crud.get_user(username)
-    return user
-
-# 获取所有用户，支持过滤和分页
-@app.get("/users")
-def get_users(
-    offset: int = Query(0, ge=0),
-    limit: int = Query(10, le=100),
-    min_age: Optional[int] = Query(None, ge=0),
-    max_age: Optional[int] = Query(None, ge=0)
-):
-    if min_age is not None and max_age is not None and min_age > max_age:
-        raise HTTPException(status_code=422, detail="min_age不能大于max_age")
-    if min_age is not None and min_age <= 0:
-        raise HTTPException(status_code=422, detail="min_age必须是正整数")
-    if max_age is not None and max_age <= 0:
-        raise HTTPException(status_code=422, detail="max_age必须是正整数")
-    users = crud.get_all_users(offset, limit, min_age, max_age)
-    return users
 
 # 更新用户
 @app.put("/users/{username}")
