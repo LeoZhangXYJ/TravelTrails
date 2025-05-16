@@ -46,3 +46,16 @@ def update_user_info(username, update_data):
 def delete_user_by_username(username):
     user = get_user(username)  # 若不存在会报404
     delete_user(username)
+
+# 添加新函数来更新用户数据
+def update_user_data(username, user_data):
+    users = load_users()
+    for i, user in enumerate(users):
+        if user['username'] == username:
+            users[i] = user_data
+            save_users(users)
+            return
+    raise HTTPException(
+        status_code=404,
+        detail="用户不存在"
+    )
