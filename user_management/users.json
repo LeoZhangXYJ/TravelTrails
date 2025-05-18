@@ -1,20 +1,8 @@
-[
-    {
-        "username": "123",
-        "email": "mawfmn.sef@sohu.com",
-        "age": null,
-        "password": "OhKvFoT4_wJQHTd"
-    },
-    {
-        "username": "Fy123",
-        "email": "DxVbw@wzjwisygsjrefha.obcb",
-        "age": 56,
-        "password": "Csectetur al1iquip"
-    },
-    {
-        "username": "FY1",
-        "email": null,
-        "age": null,
-        "password": "sit i1n culPa elit dolore"
-    }
-]
+{
+  "LeoZhang": {
+    "username": "LeoZhang",
+    "email": "leozhangxyj@zju.edu.cn",
+    "hashed_password": "$2b$12$pY/9qeJPrLMjayHpxq2wWenJEKXR6OwwJsxKPmcbGdbwIHF/R65dm",
+    "disabled": false
+  }
+}

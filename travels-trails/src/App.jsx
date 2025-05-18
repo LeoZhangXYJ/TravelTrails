@@ -1,34 +1,37 @@
 import React from 'react';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './components/Auth/Login';
+import Register from './components/Auth/Register';
+import Dashboard from './components/Dashboard';
+import { authAPI } from './services/auth';
 import { TravelProvider } from './context/TravelContext';
-import CesiumMap from './components/Map/CesiumMap';
-import CityList from './components/SidePanel/CityList';
-import Stats from './components/SidePanel/Stats';
-import PhotoGallery from './components/SidePanel/PhotoGallery';
-import BlogEditor from './components/SidePanel/BlogEditor';
-import CityForm from './components/SidePanel/CityForm';
-import TourControls from './components/SidePanel/TourControls';
-// 引入其他需要的组件，如 CityList, Stats 等
-// import CityList from './components/SidePanel/CityList';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
 
-function App() {
+const PrivateRoute = ({ children }) => {
+  return authAPI.isAuthenticated() ? children : <Navigate to="/login" />;
+};
+
+const App = () => {
   return (
-    <TravelProvider>
-      <div className="container">
-        <CesiumMap />
-        <div className="media-container">
-          <CityList />
-          <CityForm />
-          <TourControls />
-          <Stats />
-          <PhotoGallery />
-          <BlogEditor />
-          {/* <CityList /> */}
-          {/* 其他组件，如统计、照片、博客等 */}
-        </div>
-      </div>
-    </TravelProvider>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <TravelProvider>
+                <Dashboard />
+              </TravelProvider>
+            </PrivateRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/login" />} />
+      </Routes>
+    </Router>
   );
-}
+};
 
 export default App;

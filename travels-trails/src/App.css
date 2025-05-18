@@ -161,8 +161,7 @@
 .tour-controls button:disabled {
   background: #ccc;
   cursor: not-allowed;
-} 
-
+}
 
 .city-management {
   margin-bottom: 20px;
@@ -240,9 +239,6 @@
   opacity: 0.9;
 }
 
-/* 在文件末尾添加 */
-
-/* 照片画廊样式 */
 .photo-gallery {
   margin-top: 20px;
   padding: 15px;
@@ -320,7 +316,6 @@
   font-style: italic;
 }
 
-/* 博客编辑器样式 */
 .blog-editor {
   margin-top: 20px;
   padding: 15px;
@@ -351,7 +346,6 @@
   background-color: #0b7dda;
 }
 
-/* 轨迹浏览控制样式 */
 .tour-controls-container {
   margin-top: 20px;
   padding: 15px;
@@ -398,4 +392,61 @@
   color: #888;
   font-size: 14px;
   text-align: center;
+}
+
+.dashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.container-fluid {
+  flex: 1;
+  padding: 0;
+}
+
+.row {
+  margin: 0;
+  height: calc(100vh - 56px);
+}
+
+.col-md-9 {
+  padding: 0;
+  height: 100%;
+}
+
+.col-md-3 {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.side-panel > * {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .row {
+    height: auto;
+  }
+  
+  .col-md-3 {
+    height: auto;
+    max-height: 50vh;
+  }
 }
