@@ -8,6 +8,7 @@ import TourControls from './SidePanel/TourControls';
 import Stats from './SidePanel/Stats';
 import PhotoGallery from './SidePanel/PhotoGallery';
 import BlogEditor from './SidePanel/BlogEditor';
+import AIRecommendations from './SidePanel/AIRecommendations';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -70,6 +71,10 @@ const Dashboard = () => {
             <div className="sidebar-section">
               <h3>旅行博客</h3>
               <BlogEditor />
+            </div>
+
+            <div className="sidebar-section">
+              <AIRecommendations />
             </div>
           </div>
         </aside>
