@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
-import { Cartesian3, Color, Math as CesiumMath } from 'cesium';
+import { Viewer, Entity, PolylineGraphics } from 'resium';
+import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar } from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
 import '../../cesiumConfig';
 
@@ -138,15 +138,20 @@ const CesiumMap = () => {
               city.coordinates.lon,
               city.coordinates.lat
             )}
-          >
-            <BillboardGraphics
-              image="/marker.png"
-              scale={0.08}
-              color={index === currentCityIndex || (isTouring && index === tourIndex) 
-                ? Color.YELLOW 
-                : Color.RED}
-            />
-          </Entity>
+            point={{
+              pixelSize: index === currentCityIndex || (isTouring && index === tourIndex) ? 24 : 18,
+              color: index === currentCityIndex || (isTouring && index === tourIndex) 
+                ? Color.fromCssColorString('#ff4500').withAlpha(1.0)
+                : Color.fromCssColorString('#1e90ff').withAlpha(1.0),
+              outlineColor: index === currentCityIndex || (isTouring && index === tourIndex)
+                ? Color.YELLOW
+                : Color.WHITE,
+              outlineWidth: index === currentCityIndex || (isTouring && index === tourIndex) ? 4 : 3,
+              heightReference: HeightReference.CLAMP_TO_GROUND,
+              scaleByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4),
+              translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
+            }}
+          />
         ))}
 
         {/* 渲染城市间连线 */}
