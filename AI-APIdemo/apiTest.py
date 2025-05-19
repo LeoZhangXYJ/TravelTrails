@@ -38,16 +38,16 @@ def read_visited_cities():
     return data
 
 # API 测试端点
-@app.get("/test-api", response_model=List[RecommendationResponse])
-async def test_ai_api():
+@app.post("/test-api", response_model=List[RecommendationResponse])
+async def test_ai_api(request: VisitedCitiesRequest):
     """测试调用 Deepseek API 获取旅行推荐"""
     
     try:
-        # 读取访问过的城市
-        data = read_visited_cities()
+        # 使用请求中提供的城市数据
+        visited_cities = request.visitedCities
         
         # 构建请求提示
-        cities_prompt = "\n".join([f"- {city['city']}, {city['country']}" for city in data["visitedCities"]])
+        cities_prompt = "\n".join([f"- {city.city}, {city.country}" for city in visited_cities])
         
         prompt = f"""
         你是一位资深旅行推荐专家（Travel Recommendation Expert）。

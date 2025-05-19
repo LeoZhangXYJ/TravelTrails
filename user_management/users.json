@@ -4,5 +4,17 @@
     "email": "leozhangxyj@zju.edu.cn",
     "hashed_password": "$2b$12$pY/9qeJPrLMjayHpxq2wWenJEKXR6OwwJsxKPmcbGdbwIHF/R65dm",
     "disabled": false
+  },
+  "LeoZhang10": {
+    "username": "LeoZhang10",
+    "email": "1391089202@qq.com",
+    "password": "Leozhang666",
+    "disabled": false
+  },
+  "EpiohanyZZ": {
+    "username": "EpiohanyZZ",
+    "email": "leo_zhang_10@foxmail.com",
+    "password": "Leozhang666",
+    "disabled": false
   }
 }
