@@ -4,6 +4,7 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard';
 import Statistics from './pages/Statistics';
+import PhotoShowcase from './pages/PhotoShowcase';
 import { authAPI } from './services/auth';
 import { TravelProvider } from './context/TravelContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -35,6 +36,16 @@ const App = () => {
             <PrivateRoute>
               <TravelProvider>
                 <Statistics />
+              </TravelProvider>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/photos"
+          element={
+            <PrivateRoute>
+              <TravelProvider>
+                <PhotoShowcase />
               </TravelProvider>
             </PrivateRoute>
           }

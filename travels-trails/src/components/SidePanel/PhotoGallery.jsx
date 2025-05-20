@@ -1,7 +1,99 @@
 import React, { useRef, useState } from 'react';
 import { useTravelContext } from '../../context/TravelContext';
+import styled from 'styled-components';
 
-const PhotoGallery = () => {
+const GalleryContainer = styled.div`
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 10px;
+`;
+
+const PhotoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+`;
+
+const PhotoItem = styled.div`
+  position: relative;
+  aspect-ratio: 1;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 4px;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const PhotoInfo = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px;
+  font-size: 0.8em;
+  text-align: center;
+`;
+
+const NoPhotos = styled.div`
+  text-align: center;
+  color: #666;
+  padding: 20px;
+  font-style: italic;
+`;
+
+const UploadButton = styled.button`
+  width: 100%;
+  padding: 8px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-bottom: 10px;
+
+  &:hover {
+    background: #45a049;
+  }
+
+  &:disabled {
+    background: #666;
+    cursor: not-allowed;
+  }
+`;
+
+const RemoveButton = styled.button`
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(244, 67, 54, 0.8);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.3s;
+
+  &:hover {
+    background: rgba(244, 67, 54, 1);
+  }
+`;
+
+const PhotoGallery = ({ onShowPhotos }) => {
   const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const { cities, currentCityIndex, addPhotoToCity, removePhotoFromCity } = useTravelContext();
@@ -22,7 +114,10 @@ const PhotoGallery = () => {
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
-        addPhotoToCity(event.target.result); // 使用 addPhotoToCity 而不是 updateCity
+        addPhotoToCity({
+          url: event.target.result,
+          timestamp: new Date().toISOString()
+        });
         setIsLoading(false);
       };
       reader.onerror = () => {
@@ -47,52 +142,50 @@ const PhotoGallery = () => {
 
   if (!currentCity) {
     return (
-      <div className="photo-gallery">
-        <h3>照片画廊</h3>
-        <p>请先选择一个城市</p>
-      </div>
+      <GalleryContainer>
+        <h3>照片墙</h3>
+        <NoPhotos>请先选择一个城市</NoPhotos>
+      </GalleryContainer>
     );
   }
 
   return (
-    <div className="photo-gallery">
-      <h3>照片画廊 - {currentCity.name}</h3>
-      <div className="gallery-controls">
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileSelect}
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-        />
-        <button 
-          onClick={handleUploadClick} 
-          disabled={isLoading}
-          className="upload-btn"
-        >
-          {isLoading ? '上传中...' : '上传照片'}
-        </button>
-      </div>
+    <GalleryContainer>
+      <h3>照片墙</h3>
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileSelect}
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+      />
+      <UploadButton onClick={handleUploadClick} disabled={isLoading}>
+        {isLoading ? '上传中...' : '上传照片'}
+      </UploadButton>
       
-      {currentCity.photos && currentCity.photos.length > 0 ? (
-        <div className="photos-container">
-          {currentCity.photos.map((photo, idx) => (
-            <div key={idx} className="photo-item">
-              <img src={photo} alt={`${currentCity.name} 照片 ${idx + 1}`} />
-              <button 
-                className="remove-photo" 
-                onClick={() => handleRemovePhoto(idx)}
-              >
-                删除
-              </button>
-            </div>
-          ))}
-        </div>
+      {(!currentCity.photos || currentCity.photos.length === 0) ? (
+        <NoPhotos>暂无照片</NoPhotos>
       ) : (
-        <p className="no-photos">这个城市还没有照片</p>
+        <PhotoGrid>
+          {currentCity.photos.map((photo, index) => (
+            <PhotoItem key={index}>
+              <img 
+                src={photo.url} 
+                alt={`${currentCity.name} - ${index + 1}`} 
+                onClick={onShowPhotos}
+              />
+              <RemoveButton onClick={() => handleRemovePhoto(index)}>
+                删除
+              </RemoveButton>
+              <PhotoInfo>
+                {currentCity.name}, {currentCity.country}
+              </PhotoInfo>
+            </PhotoItem>
+          ))}
+        </PhotoGrid>
       )}
-    </div>
+    </GalleryContainer>
   );
 };
 
