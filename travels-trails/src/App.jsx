@@ -5,6 +5,8 @@ import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard';
 import Statistics from './pages/Statistics';
 import PhotoShowcase from './pages/PhotoShowcase';
+import AIRecommendations from './components/SidePanel/AIRecommendations';
+import Navbar from './components/Navbar/Navbar';
 import { authAPI } from './services/auth';
 import { TravelProvider } from './context/TravelContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -17,6 +19,7 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <Router>
+      <Navbar />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -46,6 +49,16 @@ const App = () => {
             <PrivateRoute>
               <TravelProvider>
                 <PhotoShowcase />
+              </TravelProvider>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/ai-recommendations"
+          element={
+            <PrivateRoute>
+              <TravelProvider>
+                <AIRecommendations />
               </TravelProvider>
             </PrivateRoute>
           }

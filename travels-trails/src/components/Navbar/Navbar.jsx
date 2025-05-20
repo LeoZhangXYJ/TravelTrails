@@ -1,41 +1,43 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from 'antd';
-import { BarChartOutlined } from '@ant-design/icons';
-import styled from 'styled-components';
-
-const Nav = styled.nav`
-  background-color: #001529;
-  padding: 0 20px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const Logo = styled.div`
-  color: white;
-  font-size: 20px;
-  font-weight: bold;
-`;
-
-const NavLinks = styled.div`
-  display: flex;
-  gap: 16px;
-`;
+import { Link, useNavigate } from 'react-router-dom';
+import { authAPI } from '../../services/auth';
+import '../Dashboard.css';
 
 const Navbar = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    authAPI.logout();
+    navigate('/login');
+  };
+
   return (
-    <Nav>
-      <Logo>Travel Trails</Logo>
-      <NavLinks>
-        <Link to="/statistics">
-          <Button type="primary" icon={<BarChartOutlined />}>
-            统计概览
-          </Button>
-        </Link>
-      </NavLinks>
-    </Nav>
+    <nav className="dashboard-nav">
+      <div className="nav-brand">
+        <i className="fas fa-globe-americas"></i>
+        <span>Travel Trails</span>
+      </div>
+      <div className="nav-controls">
+        <button 
+          className="nav-btn"
+          onClick={() => navigate('/statistics')}
+        >
+          <i className="fas fa-chart-bar"></i>
+          <span>统计概览</span>
+        </button>
+        <button 
+          className="nav-btn"
+          onClick={() => navigate('/ai-recommendations')}
+        >
+          <i className="fas fa-robot"></i>
+          <span>AI 推荐</span>
+        </button>
+        <button className="nav-logout" onClick={handleLogout}>
+          <i className="fas fa-sign-out-alt"></i>
+          <span>退出</span>
+        </button>
+      </div>
+    </nav>
   );
 };
 

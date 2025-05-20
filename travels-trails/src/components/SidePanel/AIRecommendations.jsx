@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import { useTravelContext } from '../../context/TravelContext';
 import { getRecommendations } from '../../services/aiService';
+import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../../services/auth';
 
 const AIRecommendations = () => {
   const { cities } = useTravelContext();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    authAPI.logout();
+    navigate('/login');
+  };
 
   const handleGetRecommendations = async () => {
     if (cities.length === 0) {
@@ -36,7 +44,14 @@ const AIRecommendations = () => {
   };
 
   return (
-    <div className="p-4">
+    <div className="max-w-2xl mx-auto p-6 mt-40 bg-white rounded-2xl shadow-lg relative">
+      <button
+        onClick={handleLogout}
+        className="absolute top-6 right-6 flex items-center gap-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow transition"
+      >
+        <i className="fas fa-sign-out-alt"></i>
+        退出
+      </button>
       <h2 className="text-xl font-bold mb-4">AI 旅行推荐</h2>
       
       <button

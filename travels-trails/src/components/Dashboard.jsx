@@ -7,7 +7,6 @@ import CityForm from './SidePanel/CityForm';
 import TourControls from './SidePanel/TourControls';
 import PhotoGallery from './SidePanel/PhotoGallery';
 import BlogEditor from './SidePanel/BlogEditor';
-import AIRecommendations from './SidePanel/AIRecommendations';
 import PhotoOverlay from './PhotoOverlay';
 import { useTravelContext } from '../context/TravelContext';
 import './Dashboard.css';
@@ -34,33 +33,6 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      {/* 顶部导航栏 */}
-      <nav className="dashboard-nav">
-        <div className="nav-brand">
-          <i className="fas fa-globe-americas"></i>
-          <span>Travel Trails</span>
-        </div>
-        <div className="nav-controls">
-          <button 
-            className="nav-btn"
-            onClick={() => navigate('/statistics')}
-          >
-            <i className="fas fa-chart-bar"></i>
-            <span>统计概览</span>
-          </button>
-          <button 
-            className="nav-toggle"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          >
-            <i className={`fas fa-${isSidebarCollapsed ? 'bars' : 'times'}`}></i>
-          </button>
-          <button className="nav-logout" onClick={handleLogout}>
-            <i className="fas fa-sign-out-alt"></i>
-            <span>退出</span>
-          </button>
-        </div>
-      </nav>
-
       {/* 主要内容区域 */}
       <div className="dashboard-content">
         {/* 侧边栏 */}
@@ -85,10 +57,6 @@ const Dashboard = () => {
             <div className="sidebar-section">
               <h3>旅行博客</h3>
               <BlogEditor />
-            </div>
-
-            <div className="sidebar-section">
-              <AIRecommendations />
             </div>
           </div>
         </aside>

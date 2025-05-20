@@ -111,7 +111,7 @@ const Statistics = () => {
   const toRad = (degrees) => {
     return degrees * (Math.PI / 180);
   };
-  
+
   return (
     <StatisticsContainer>
       <Header>
