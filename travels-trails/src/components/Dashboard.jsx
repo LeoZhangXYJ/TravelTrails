@@ -5,7 +5,6 @@ import CesiumMap from './Map/CesiumMap';
 import CityList from './SidePanel/CityList';
 import CityForm from './SidePanel/CityForm';
 import TourControls from './SidePanel/TourControls';
-import Stats from './SidePanel/Stats';
 import PhotoGallery from './SidePanel/PhotoGallery';
 import BlogEditor from './SidePanel/BlogEditor';
 import AIRecommendations from './SidePanel/AIRecommendations';
@@ -29,6 +28,13 @@ const Dashboard = () => {
           <span>Travel Trails</span>
         </div>
         <div className="nav-controls">
+          <button 
+            className="nav-btn"
+            onClick={() => navigate('/statistics')}
+          >
+            <i className="fas fa-chart-bar"></i>
+            <span>统计概览</span>
+          </button>
           <button 
             className="nav-toggle"
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -56,11 +62,6 @@ const Dashboard = () => {
             <div className="sidebar-section">
               <h3>旅行控制</h3>
               <TourControls />
-            </div>
-            
-            <div className="sidebar-section">
-              <h3>统计信息</h3>
-              <Stats />
             </div>
             
             <div className="sidebar-section">

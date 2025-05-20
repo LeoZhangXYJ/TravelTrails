@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard';
+import Statistics from './pages/Statistics';
 import { authAPI } from './services/auth';
 import { TravelProvider } from './context/TravelContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -24,6 +25,16 @@ const App = () => {
             <PrivateRoute>
               <TravelProvider>
                 <Dashboard />
+              </TravelProvider>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/statistics"
+          element={
+            <PrivateRoute>
+              <TravelProvider>
+                <Statistics />
               </TravelProvider>
             </PrivateRoute>
           }

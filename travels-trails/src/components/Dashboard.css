@@ -39,6 +39,7 @@
   gap: 1rem;
 }
 
+.nav-btn,
 .nav-toggle,
 .nav-logout {
   background: none;
@@ -53,6 +54,7 @@
   transition: all 0.3s ease;
 }
 
+.nav-btn:hover,
 .nav-toggle:hover,
 .nav-logout:hover {
   transform: translateY(-2px);
@@ -124,6 +126,7 @@
     display: none;
   }
 
+  .nav-btn span,
   .nav-logout span {
     display: none;
   }
