@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import Slider from 'react-slick';
-import { FaArrowLeft, FaPlusCircle, FaSpinner, FaExclamationTriangle } from 'react-icons/fa';
+import { FaArrowLeft, FaPlusCircle, FaSpinner, FaExclamationTriangle, FaPlane, FaTrain, FaCar, FaBus, FaShip, FaBicycle, FaWalking, FaCalendarAlt } from 'react-icons/fa';
+import { MdOutlineQuestionMark } from "react-icons/md";
 import { useTravelContext } from '../context/TravelContext';
 
 // 导入 slick-carousel 的 CSS 文件，确保全局引入
@@ -237,13 +238,182 @@ const FetchButton = styled.button`
   }
 `;
 
+// 交通方式选择模态框样式
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+
+const ModalTitle = styled.h3`
+  margin-bottom: 1.5rem;
+  color: #333;
+  text-align: center;
+`;
+
+const TransportGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+`;
+
+const TransportOption = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+  }
+  
+  &.selected {
+    border-color: #007bff;
+    background: #e6f3ff;
+  }
+  
+  svg {
+    font-size: 1.5rem;
+    color: #007bff;
+  }
+  
+  span {
+    font-size: 0.9rem;
+    color: #333;
+  }
+`;
+
+const ModalButtons = styled.div`
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+`;
+
+const ModalButton = styled.button`
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  
+  &.confirm {
+    background: #28a745;
+    color: white;
+    
+    &:hover {
+      background: #218838;
+    }
+  }
+  
+  &.cancel {
+    background: #6c757d;
+    color: white;
+    
+    &:hover {
+      background: #545b62;
+    }
+  }
+`;
+
+// 日期选择相关样式
+const DateSection = styled.div`
+  margin: 1.5rem 0;
+`;
+
+const DateSectionTitle = styled.h4`
+  margin-bottom: 1rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  svg {
+    color: #007bff;
+  }
+`;
+
+const DateInputGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+`;
+
+const DateInput = styled.input`
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+  
+  &:invalid {
+    border-color: #dc3545;
+  }
+`;
+
+const DateLabel = styled.label`
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+  display: block;
+`;
+
 const AIRecommendations = () => {
   const navigate = useNavigate();
-  const { cities, addCity, showNotification } = useTravelContext();
+  const { cities, addCity } = useTravelContext();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false); // 初始不加载，等待按钮点击或useEffect触发
   const [error, setError] = useState(null);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
+  
+  // 交通方式选择相关状态
+  const [showTransportModal, setShowTransportModal] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [selectedTransport, setSelectedTransport] = useState('plane');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // 交通方式选项
+  const transportOptions = [
+    { value: 'plane', label: '飞机', icon: FaPlane },
+    { value: 'train', label: '火车', icon: FaTrain },
+    { value: 'car', label: '汽车', icon: FaCar },
+    { value: 'bus', label: '巴士', icon: FaBus },
+    { value: 'boat', label: '轮船', icon: FaShip },
+    { value: 'bicycle', label: '自行车', icon: FaBicycle },
+    { value: 'walk', label: '步行', icon: FaWalking },
+    { value: 'other', label: '其他', icon: MdOutlineQuestionMark },
+  ];
 
   const fetchRecommendationsFunction = async () => {
     console.log("fetchRecommendationsFunction CALLED"); // 日志1：函数是否被调用
@@ -321,31 +491,68 @@ const AIRecommendations = () => {
 
   const handleAddCityToTravel = (rec) => {
     if (rec.latitude != null && rec.longitude != null) {
-      const newCity = {
-        name: rec.city,
-        country: rec.country,
-        coordinates: { lat: rec.latitude, lon: rec.longitude },
-        notes: `AI Recommendation: ${rec.reason}`,
-        photos: [],
-        transportMode: 'plane',
-        startDate: null,
-        endDate: null
-      };
-      addCity(newCity.name, newCity.country, newCity.coordinates.lat, newCity.coordinates.lon, newCity.notes, newCity.photos, newCity.transportMode, newCity.startDate, newCity.endDate);
-      if (showNotification) {
-        showNotification(`${rec.city} added to your travel itinerary!`, 'success');
-      } else {
-        alert(`${rec.city} added to your travel itinerary!`);
-      }
+      setSelectedCity(rec);
+      setSelectedTransport('plane'); // 默认选择飞机
+      // 设置默认日期为明天和后天（因为是推荐，必须是未来）
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfterTomorrow = new Date();
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+      
+      setStartDate(tomorrow.toISOString().split('T')[0]);
+      setEndDate(dayAfterTomorrow.toISOString().split('T')[0]);
+      setShowTransportModal(true);
     } else {
       const message = `Cannot add ${rec.city}, location information is missing.`;
-      if (showNotification) {
-        showNotification(message, 'error');
-      } else {
-        alert(message);
-      }
+      alert(message);
       console.warn("Cannot add city, missing latitude/longitude:", rec);
     }
+  };
+
+  const handleConfirmAddCity = () => {
+    if (selectedCity) {
+      // 验证日期
+      if (!startDate || !endDate) {
+        alert('请选择旅行日期');
+        return;
+      }
+      
+      const today = new Date().toISOString().split('T')[0];
+      if (startDate <= today) {
+        alert('推荐城市的开始日期必须是未来日期');
+        return;
+      }
+      
+      if (endDate < startDate) {
+        alert('结束日期不能早于开始日期');
+        return;
+      }
+      
+      const newCityData = {
+        name: selectedCity.city,
+        country: selectedCity.country,
+        coordinates: { lat: selectedCity.latitude, lon: selectedCity.longitude },
+        notes: `AI Recommendation: ${selectedCity.reason}`,
+        photos: [],
+        transportMode: selectedTransport,
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+      };
+      
+      addCity(newCityData);
+      alert(`${selectedCity.city} 已添加到您的旅行计划！`);
+      
+      setShowTransportModal(false);
+      setSelectedCity(null);
+    }
+  };
+
+  const handleCancelAddCity = () => {
+    setShowTransportModal(false);
+    setSelectedCity(null);
+    setSelectedTransport('plane');
+    setStartDate('');
+    setEndDate('');
   };
 
   const sliderSettings = {
@@ -462,6 +669,69 @@ const AIRecommendations = () => {
             </StyledSlider>
           )}
         </SliderWrapper>
+      )}
+      
+      {/* 交通方式选择模态框 */}
+      {showTransportModal && (
+        <Modal onClick={handleCancelAddCity}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>添加 {selectedCity?.city} 到旅行计划</ModalTitle>
+            
+            <TransportGrid>
+              {transportOptions.map((option) => {
+                const IconComponent = option.icon;
+                return (
+                  <TransportOption
+                    key={option.value}
+                    className={selectedTransport === option.value ? 'selected' : ''}
+                    onClick={() => setSelectedTransport(option.value)}
+                  >
+                    <IconComponent />
+                    <span>{option.label}</span>
+                  </TransportOption>
+                );
+              })}
+            </TransportGrid>
+            
+            <DateSection>
+              <DateSectionTitle>
+                <FaCalendarAlt />
+                选择旅行日期（必须是未来日期）
+              </DateSectionTitle>
+              <DateInputGrid>
+                <div>
+                  <DateLabel>开始日期</DateLabel>
+                  <DateInput
+                    type="date"
+                    value={startDate}
+                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} // 明天
+                    onChange={(e) => setStartDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <DateLabel>结束日期</DateLabel>
+                  <DateInput
+                    type="date"
+                    value={endDate}
+                    min={startDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </DateInputGrid>
+            </DateSection>
+            
+            <ModalButtons>
+              <ModalButton className="cancel" onClick={handleCancelAddCity}>
+                取消
+              </ModalButton>
+              <ModalButton className="confirm" onClick={handleConfirmAddCity}>
+                确认添加
+              </ModalButton>
+            </ModalButtons>
+          </ModalContent>
+        </Modal>
       )}
     </PageContainer>
   );

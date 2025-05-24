@@ -11,7 +11,7 @@ import PhotoOverlay from './PhotoOverlay';
 import { useTravelContext } from '../context/TravelContext';
 import './Dashboard.css';
 
-const SIDEBAR_EXPANDED_WIDTH = 280; // Example width, adjust as needed
+const SIDEBAR_EXPANDED_WIDTH = 380; // Example width, adjust as needed
 const SIDEBAR_COLLAPSED_WIDTH = 80;  // Example width, adjust as needed
 
 const Dashboard = () => {

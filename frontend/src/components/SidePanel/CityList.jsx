@@ -211,8 +211,13 @@ const CityList = () => {
 
       <Form.Item 
         name="transportMode" 
-        label="交通方式" 
-        // initialValue wird nun über form.initialValues oder useEffect gesteuert
+        label="交通方式"
+        rules={[
+          { 
+            required: !isFirstCity, 
+            message: '请选择交通方式' 
+          }
+        ]}
       >
         <Select disabled={isFirstCity} placeholder={isFirstCity ? "起点无需交通方式" : "请选择交通方式"}>
           {/* Die Option 'home' wird nicht mehr zur Auswahl angezeigt, aber intern verwendet */}
@@ -227,8 +232,25 @@ const CityList = () => {
         </Select>
       </Form.Item>
 
-      <Form.Item name="dateRange" label="日期范围 (可选)">
-        <RangePicker style={{ width: '100%' }} disabled={isFirstCity} />
+      <Form.Item 
+        name="dateRange" 
+        label="日期范围"
+        rules={[
+          { 
+            required: !isFirstCity, 
+            message: '请选择旅行日期范围' 
+          }
+        ]}
+      >
+        <RangePicker 
+          style={{ width: '100%' }} 
+          disabled={isFirstCity}
+          disabledDate={(current) => {
+            // 禁用未来日期，只能选择今天及以前
+            return current && current.isAfter(new Date(), 'day');
+          }}
+          placeholder={['开始日期', '结束日期']}
+        />
       </Form.Item>
 
       <Form.Item>

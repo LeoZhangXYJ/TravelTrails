@@ -69,7 +69,7 @@
 
 /* 侧边栏样式 */
 .dashboard-sidebar {
-  width: 350px;
+  width: 380px;
   background: white;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTravelContext } from '../../context/TravelContext';
-import { FaPlane, FaTrain, FaCar, FaShip, FaWalking, FaBus, FaBicycle } from 'react-icons/fa';
+import { FaPlane, FaTrain, FaCar, FaShip, FaWalking, FaBus, FaBicycle, FaCalendarAlt } from 'react-icons/fa';
 import { MdOutlineQuestionMark } from "react-icons/md";
 
 const CityForm = () => {
@@ -35,6 +35,31 @@ const CityForm = () => {
     }
   };
 
+  // 格式化日期显示
+  const formatDateRange = (startDate, endDate) => {
+    if (!startDate && !endDate) return null;
+    
+    const formatDate = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('zh-CN', {
+        month: 'short',
+        day: 'numeric'
+      });
+    };
+    
+    if (startDate && endDate) {
+      const start = formatDate(startDate);
+      const end = formatDate(endDate);
+      return `${start} - ${end}`;
+    } else if (startDate) {
+      return `从 ${formatDate(startDate)}`;
+    } else if (endDate) {
+      return `至 ${formatDate(endDate)}`;
+    }
+    return null;
+  };
+
   // 如果没有城市，显示提示信息
   if (cities.length === 0) {
     return (
@@ -55,11 +80,26 @@ const CityForm = () => {
             className={`city-item ${index === currentCityIndex ? 'active' : ''}`}
           >
             <div className="city-info" onClick={() => setCurrentCityIndex(index)} style={{ cursor: 'pointer' }}>
-              <span className="city-name">{city.name}</span>
-              <span className="city-transport-icon" style={{ marginLeft: '8px', marginRight: '4px' }}>
-                {getTransportIcon(city.transportMode)}
-              </span>
-              {city.country && <span className="city-country"> - {city.country}</span>}
+              <div className="city-main-info">
+                <span className="city-name">{city.name}</span>
+                <span className="city-transport-icon" style={{ marginLeft: '8px', marginRight: '4px' }}>
+                  {getTransportIcon(city.transportMode)}
+                </span>
+                {city.country && <span className="city-country"> - {city.country}</span>}
+              </div>
+              {formatDateRange(city.startDate, city.endDate) && (
+                <div className="city-date-info" style={{ 
+                  fontSize: '0.8rem', 
+                  color: '#666', 
+                  marginTop: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <FaCalendarAlt style={{ fontSize: '0.7rem' }} />
+                  {formatDateRange(city.startDate, city.endDate)}
+                </div>
+              )}
             </div>
             <div className="city-actions">
               <button 
