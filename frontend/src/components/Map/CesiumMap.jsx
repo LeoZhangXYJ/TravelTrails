@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
-import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4 } from 'cesium';
+import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4, Cartographic } from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
 import '../../cesiumConfig';
 
@@ -92,6 +92,10 @@ const CesiumMap = () => {
   const prevIsTouring = useRef(isTouring);
   const [movingIcon, setMovingIcon] = useState(null);
   const [currentTransportMode, setCurrentTransportMode] = useState(null);
+  const animationRunning = useRef(false); // 添加动画运行标志
+  const currentAnimation = useRef(null); // 存储当前动画的引用
+  const allTimeouts = useRef([]); // 存储所有定时器引用
+  const cameraFlightInProgress = useRef(false); // 存储相机飞行状态
 
   // 初始化Cesium Viewer
   useEffect(() => {
@@ -147,9 +151,11 @@ const CesiumMap = () => {
   // Reset initialTourFlightPerformed when tour stops
   useEffect(() => {
     if (!isTouring && prevIsTouring.current) {
+      console.log('检测到停止浏览，开始清理');
       setInitialTourFlightPerformed(false);
-      // 清理移动图标
-      stopMovingIcon();
+      
+      // 完全清理所有动画和定时器
+      stopAllAnimationsAndTimers();
     }
     prevIsTouring.current = isTouring;
   }, [isTouring]);
@@ -178,13 +184,13 @@ const CesiumMap = () => {
       return;
     }
     
-    // 调整动画时长参数
+    // 调整动画时长参数 - 大幅加快速度
     const distance = calculateDistance(
         currentTravelCity.coordinates.lat, currentTravelCity.coordinates.lon,
         nextTravelCity.coordinates.lat, nextTravelCity.coordinates.lon
     );
-    const phaseDuration = Math.min(Math.max(distance * 50, 2000), 5000) / 1000; // 增加时长：2s - 5s pro Phase
-    const cityStayDuration = 1500; // 增加城市停留时间
+    const phaseDuration = Math.min(Math.max(distance * 10, 800), 2000) / 1000; // 加快：0.8s - 2s pro Phase
+    const cityStayDuration = 500; // 减少城市停留时间到0.5秒
 
     const performTwoStageFlight = (fromCity, toCity, onComplete) => {
       // Add checks inside performTwoStageFlight as well, as it's a critical part
@@ -195,8 +201,14 @@ const CesiumMap = () => {
         return;
       }
 
+      // 如果不在浏览状态，立即返回
+      if (!isTouring) {
+        console.log('不在浏览状态，取消飞行');
+        return;
+      }
+
       // 清理之前的移动图标
-      stopMovingIcon();
+      stopAllAnimationsAndTimers();
 
       // 计算包含两个城市的中心点和合适的视角
       const centerLon = (fromCity.coordinates.lon + toCity.coordinates.lon) / 2;
@@ -226,32 +238,57 @@ const CesiumMap = () => {
       };
 
       // 第一阶段：缩小到能看到两个城市的视角
+      cameraFlightInProgress.current = true;
       viewer.camera.flyTo({
           destination: overviewDestination,
           orientation: overviewOrientation,
-          duration: phaseDuration * 0.3,
+          duration: phaseDuration * 0.2, // 进一步缩短相机移动时间
           complete: () => {
-              if (!isTouring) return;
+              cameraFlightInProgress.current = false;
+              if (!isTouring) {
+                console.log('浏览已停止，取消后续动画');
+                return;
+              }
               
-              // 第二阶段：启动图标移动，相机保持不动
-              const iconMovementDuration = phaseDuration * 1.4;
-              startMovingIconWithStaticCamera(fromCity, toCity, toCity.transportMode, iconMovementDuration);
-              
-              // 等待图标移动完成
-              setTimeout(() => {
-                if (!isTouring) return;
+              // 减少等待时间
+              const timeout1 = setTimeout(() => {
+                if (!isTouring) {
+                  console.log('浏览已停止，取消图标移动');
+                  return;
+                }
                 
-                // 停止图标移动
-                stopMovingIcon();
+                console.log('相机到位，开始图标移动');
+                // 第二阶段：启动图标移动，相机保持不动
+                const iconMovementDuration = phaseDuration * 1.6; // 增加图标移动时间占比
+                startMovingIconAlongTrajectory(fromCity, toCity, toCity.transportMode, iconMovementDuration);
                 
-                // 第三阶段：放大到目标城市
-                viewer.camera.flyTo({
-                    destination: finalDestination,
-                    orientation: finalOrientation, 
-                    duration: phaseDuration * 0.3,
-                    complete: onComplete
-                });
-              }, iconMovementDuration * 1000);
+                // 等待图标移动完成
+                const timeout2 = setTimeout(() => {
+                  if (!isTouring) {
+                    console.log('浏览已停止，取消相机缩放');
+                    return;
+                  }
+                  
+                  // 停止图标移动
+                  stopAllAnimationsAndTimers();
+                  
+                  // 第三阶段：放大到目标城市
+                  cameraFlightInProgress.current = true;
+                  viewer.camera.flyTo({
+                      destination: finalDestination,
+                      orientation: finalOrientation, 
+                      duration: phaseDuration * 0.2, // 进一步缩短相机移动时间
+                      complete: () => {
+                        cameraFlightInProgress.current = false;
+                        if (isTouring && onComplete) {
+                          onComplete();
+                        }
+                      }
+                  });
+                }, iconMovementDuration * 1000);
+                allTimeouts.current.push(timeout2);
+              }, 100); // 减少等待时间到100ms
+              allTimeouts.current.push(timeout1);
           }
       });
     };
@@ -282,12 +319,12 @@ const CesiumMap = () => {
             duration: 1.0, // Dauer für Zoom In auf Home
             complete: () => {
               if (!isTouring) return;
-              setTimeout(() => {
+              const homeStayTimeout = setTimeout(() => {
                 if (!isTouring) return;
                 // Starte den normalen Zwei-Phasen-Flug von Home zum ersten Reiseziel
                 performTwoStageFlight(sortedCities[0], nextTravelCity, () => {
                   if (!isTouring) return;
-                  setTimeout(() => {
+                  const nextTimeout = setTimeout(() => {
                     if (!isTouring) return;
                     if (sortedCities.length <= 2 && tourIndex === 0) { // Spezialfall: Home + 1 Ziel
                         stopTour();
@@ -295,8 +332,10 @@ const CesiumMap = () => {
                         setTourIndex(nextTravelActualIndex);
                     }
                   }, cityStayDuration);
+                  allTimeouts.current.push(nextTimeout);
                 });
               }, cityStayDuration); // Am "Home" Punkt verweilen
+              allTimeouts.current.push(homeStayTimeout);
             }
           });
         }
@@ -305,7 +344,7 @@ const CesiumMap = () => {
       // Normaler Zwei-Phasen-Flug für alle anderen Segmente
       performTwoStageFlight(currentTravelCity, nextTravelCity, () => {
         if (!isTouring) return;
-        setTimeout(() => {
+        const stayTimeout = setTimeout(() => {
           if (!isTouring) return;
           if (tourIndex === sortedCities.length - 2) { 
             stopTour();
@@ -313,6 +352,7 @@ const CesiumMap = () => {
             setTourIndex(nextTravelActualIndex);
           }
         }, cityStayDuration);
+        allTimeouts.current.push(stayTimeout);
       });
     }
   }, [isTouring, tourIndex, cities, setTourIndex, stopTour, initialTourFlightPerformed]);
@@ -343,102 +383,223 @@ const CesiumMap = () => {
   const createMovingIcon = (fromCity, toCity, transportMode, viewer, duration) => {
     if (!fromCity || !toCity || !viewer) return null;
 
-    // 直接使用当前时间，不设置时钟
+    // 调整图标高度，确保在概览视角下可见
+    const iconHeight = 20000; // 降低高度到20km，与城市点相同
     const startPosition = Cartesian3.fromDegrees(
       fromCity.coordinates.lon,
       fromCity.coordinates.lat,
-      50000 // 提高图标高度，确保可见
+      iconHeight
     );
     const endPosition = Cartesian3.fromDegrees(
       toCity.coordinates.lon,
       toCity.coordinates.lat,
-      50000 // 提高图标高度，确保可见
+      iconHeight
     );
 
-    // 创建移动实体（不使用时间相关的位置属性）
+    // 创建移动实体
     const movingEntity = {
       id: 'moving-transport-icon',
       position: startPosition, // 初始位置
+      point: {
+        pixelSize: 30,
+        color: Color.RED,
+        outlineColor: Color.WHITE,
+        outlineWidth: 3,
+        heightReference: HeightReference.NONE,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      },
       label: {
         text: getTransportIcon(transportMode),
-        font: '56pt sans-serif', // 进一步增大字体
+        font: '48pt sans-serif',
         pixelOffset: new Cartesian2(0, -40),
-        fillColor: Color.YELLOW, // 使用明亮的黄色，更容易看见
-        outlineColor: Color.BLACK,
-        outlineWidth: 4, // 更粗的边框
+        fillColor: Color.RED,
+        outlineColor: Color.WHITE,
+        outlineWidth: 3,
         style: 1, // FILL_AND_OUTLINE
-        heightReference: HeightReference.NONE, // 不贴地，保持固定高度
+        heightReference: HeightReference.NONE,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        scale: 2.0, // 增加缩放
-        translucencyByDistance: undefined, // 确保在任何距离都可见
-        scaleByDistance: undefined // 确保在任何距离都保持大小
+        scale: 2.0,
+        translucencyByDistance: undefined,
+        scaleByDistance: undefined,
+        show: true
       }
     };
 
-    return { entity: movingEntity, startPosition, endPosition, duration };
+    return { entity: movingEntity, startPosition, endPosition, duration, iconHeight };
   };
 
-  // 启动移动图标，相机保持静止
-  const startMovingIconWithStaticCamera = (fromCity, toCity, transportMode, duration) => {
-    if (!viewerRef.current?.cesiumElement) return;
+  // 启动移动图标，严格沿着轨迹线移动
+  const startMovingIconAlongTrajectory = (fromCity, toCity, transportMode, duration) => {
+    if (!viewerRef.current?.cesiumElement || !isTouring) return;
     
     const viewer = viewerRef.current.cesiumElement;
     const iconData = createMovingIcon(fromCity, toCity, transportMode, viewer, duration);
     
     if (iconData) {
-      // 先添加图标实体到viewer
-      viewer.entities.add({
+      // 先清理可能存在的旧图标
+      const existingEntity = viewer.entities.getById('moving-transport-icon');
+      if (existingEntity) {
+        viewer.entities.remove(existingEntity);
+        console.log('清理旧图标');
+      }
+      
+      // 添加新图标实体到viewer
+      const addedEntity = viewer.entities.add({
         id: iconData.entity.id,
         position: iconData.entity.position,
+        point: iconData.entity.point,
         label: iconData.entity.label
       });
+      
+      console.log('新图标已添加:', addedEntity.id);
       
       setMovingIcon(iconData.entity);
       setCurrentTransportMode(transportMode);
       
-      // 调整动画参数 - 图标移动时相机保持不动
-      const steps = 200; // 平滑的动画步数
+      // 使用与PolylineGraphics完全相同的路径计算方法
+      // PolylineGraphics使用 Cartesian3.fromDegreesArray 来创建路径
+      const steps = 60; // 减少动画步数，加快速度
       const stepDuration = (duration * 1000) / steps; // 每步的时间（毫秒）
       let currentStep = 0;
       
-      const animateIconOnly = () => {
-        if (!isTouring || currentStep >= steps) return;
+      // 设置动画运行标志
+      animationRunning.current = true;
+      
+      const animateIconAlongTrajectory = () => {
+        // 检查动画是否应该停止
+        if (!isTouring || !animationRunning.current || currentStep >= steps) {
+          console.log('动画结束或被强制停止');
+          animationRunning.current = false;
+          // 确保清理图标
+          if (viewer.entities.getById('moving-transport-icon')) {
+            viewer.entities.removeById('moving-transport-icon');
+          }
+          return;
+        }
         
         const progress = currentStep / steps;
         
-        // 插值经纬度
-        const currentLon = fromCity.coordinates.lon + 
-          (toCity.coordinates.lon - fromCity.coordinates.lon) * progress;
-        const currentLat = fromCity.coordinates.lat + 
-          (toCity.coordinates.lat - fromCity.coordinates.lat) * progress;
+        // *** 关键修复：使用与PolylineGraphics完全相同的路径计算方法 ***
+        // PolylineGraphics 内部使用 Cartesian3.fromDegreesArray，然后 Cesium 会自动计算地球曲面上的大圆路径
+        // 我们需要模拟这个过程，计算大圆路径上的中间点
         
-        const currentPosition = Cartesian3.fromDegrees(currentLon, currentLat, 50000);
+        const startLon = CesiumMath.toRadians(fromCity.coordinates.lon);
+        const startLat = CesiumMath.toRadians(fromCity.coordinates.lat);
+        const endLon = CesiumMath.toRadians(toCity.coordinates.lon);
+        const endLat = CesiumMath.toRadians(toCity.coordinates.lat);
         
-        // 只更新图标位置，不移动相机
+        // 使用球面线性插值 (Spherical Linear Interpolation) 计算大圆路径上的点
+        // 这与 Cesium 的 PolylineGraphics 使用的方法相同
+        const startCartesian = Cartesian3.fromRadians(startLon, startLat);
+        const endCartesian = Cartesian3.fromRadians(endLon, endLat);
+        
+        // 使用 Cesium 的球面线性插值
+        const interpolatedCartesian = new Cartesian3();
+        Cartesian3.lerp(startCartesian, endCartesian, progress, interpolatedCartesian);
+        
+        // 转换回经纬度
+        const cartographic = viewer.scene.globe.ellipsoid.cartesianToCartographic(interpolatedCartesian);
+        const currentLon = CesiumMath.toDegrees(cartographic.longitude);
+        const currentLat = CesiumMath.toDegrees(cartographic.latitude);
+        
+        // 创建最终位置（添加高度）
+        const currentPosition = Cartesian3.fromDegrees(
+          currentLon, 
+          currentLat, 
+          iconData.iconHeight || 20000
+        );
+        
+        // 使用更可靠的实体更新方式
         const entity = viewer.entities.getById('moving-transport-icon');
-        if (entity) {
+        if (entity && animationRunning.current && isTouring) {
           entity.position = currentPosition;
+          if (currentStep % 20 === 0) { // 每20步打印一次调试信息
+            console.log('图标沿轨迹移动:', Math.round(progress * 100) + '%');
+          }
+        } else if (!entity && animationRunning.current && isTouring) {
+          console.error('图标实体丢失，尝试重新创建');
+          // 尝试重新添加图标
+          viewer.entities.add({
+            id: 'moving-transport-icon',
+            position: currentPosition,
+            point: iconData.entity.point,
+            label: iconData.entity.label
+          });
         }
         
         currentStep++;
-        if (currentStep < steps) {
-          setTimeout(animateIconOnly, stepDuration);
+        if (currentStep < steps && animationRunning.current && isTouring) {
+          // 存储定时器引用，以便可以取消
+          currentAnimation.current = setTimeout(animateIconAlongTrajectory, stepDuration);
+        } else {
+          console.log('图标动画自然完成或被停止');
+          animationRunning.current = false;
         }
       };
       
       // 开始动画
-      animateIconOnly();
+      const startTimeout = setTimeout(() => {
+        if (isTouring) {
+          console.log('开始图标轨迹移动动画');
+          animateIconAlongTrajectory();
+        }
+      }, 50); // 减少等待时间到50ms
+      allTimeouts.current.push(startTimeout);
     }
   };
 
-  // 停止移动图标和摄像机跟随
-  const stopMovingIcon = () => {
+  // 停止所有动画和定时器的统一方法
+  const stopAllAnimationsAndTimers = () => {
+    console.log('强制停止所有动画和定时器');
+    
+    // 立即设置动画停止标志
+    animationRunning.current = false;
+    cameraFlightInProgress.current = false;
+    
+    // 清除当前动画定时器
+    if (currentAnimation.current) {
+      clearTimeout(currentAnimation.current);
+      currentAnimation.current = null;
+    }
+    
+    // 清除所有存储的定时器
+    allTimeouts.current.forEach(timeout => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    });
+    allTimeouts.current = [];
+    
     if (!viewerRef.current?.cesiumElement) return;
     
     const viewer = viewerRef.current.cesiumElement;
-    viewer.entities.removeById('moving-transport-icon');
+    
+    // 取消正在进行的相机飞行
+    viewer.camera.cancelFlight();
+    
+    // 多重清理确保彻底移除图标
+    const entity = viewer.entities.getById('moving-transport-icon');
+    if (entity) {
+      viewer.entities.remove(entity);
+      console.log('图标已移除');
+    }
+    
+    // 也尝试通过ID移除（双重保险）
+    try {
+      viewer.entities.removeById('moving-transport-icon');
+    } catch (e) {
+      // 忽略错误，可能实体已经被移除
+    }
+    
     setMovingIcon(null);
     setCurrentTransportMode(null);
+    
+    console.log('所有动画和定时器状态已清理');
+  };
+
+  // 停止移动图标和摄像机跟随（保留原方法名以兼容）
+  const stopMovingIcon = () => {
+    stopAllAnimationsAndTimers();
   };
 
   return (
