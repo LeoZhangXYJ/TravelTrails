@@ -383,7 +383,7 @@ const AIRecommendations = () => {
   return (
     <PageContainer>
       <Header>
-        <BackButton onClick={() => navigate('/')}><FaArrowLeft /> 返回地图</BackButton>
+        <BackButton onClick={() => navigate('/dashboard')}><FaArrowLeft /> 返回地图</BackButton>
         <Title>AI Travel Recommendations</Title>
         <div style={{ width: '130px' }} /> {/* 调整占位符宽度以更好地居中标题 */}
       </Header>

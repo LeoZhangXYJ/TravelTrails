@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard';
@@ -16,10 +16,22 @@ const PrivateRoute = ({ children }) => {
   return authAPI.isAuthenticated() ? children : <Navigate to="/login" />;
 };
 
+// 条件渲染导航栏的组件
+const ConditionalNavbar = () => {
+  const location = useLocation();
+  const hideNavbarPaths = ['/login', '/register'];
+  
+  if (hideNavbarPaths.includes(location.pathname)) {
+    return null;
+  }
+  
+  return <Navbar />;
+};
+
 const App = () => {
   return (
     <Router>
-      <Navbar />
+      <ConditionalNavbar />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
