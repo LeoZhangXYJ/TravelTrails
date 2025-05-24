@@ -503,7 +503,7 @@ const AIRecommendations = () => {
       setEndDate(dayAfterTomorrow.toISOString().split('T')[0]);
       setShowTransportModal(true);
     } else {
-      const message = `Cannot add ${rec.city}, location information is missing.`;
+      const message = `无法添加 ${rec.city}，缺少位置信息。`;
       alert(message);
       console.warn("Cannot add city, missing latitude/longitude:", rec);
     }
@@ -611,13 +611,13 @@ const AIRecommendations = () => {
     <PageContainer>
       <Header>
         <BackButton onClick={() => navigate('/dashboard')}><FaArrowLeft /> 返回地图</BackButton>
-        <Title>AI Travel Recommendations</Title>
+        <Title>AI 旅行推荐</Title>
         <div style={{ width: '130px' }} /> {/* 调整占位符宽度以更好地居中标题 */}
       </Header>
 
       <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
         <FetchButton onClick={fetchRecommendationsFunction} disabled={loading}>
-          {loading ? <FaSpinner className="fa-spin" /> : 'Get AI Recommendations'}
+          {loading ? <FaSpinner className="fa-spin" /> : '获取 AI 推荐'}
         </FetchButton>
       </div>
 
@@ -630,14 +630,14 @@ const AIRecommendations = () => {
       {!loading && error && (
         <StatusContainer>
           <FaExclamationTriangle size={50} color="red" />
-          <p>Sorry, there was an issue fetching recommendations:</p>
+          <p>抱歉，获取推荐时出现问题：</p>
           <p>{error}</p>
         </StatusContainer>
       )}
 
       {!loading && !error && initialFetchDone && recommendations.length === 0 && (
         <StatusContainer>
-          <p>No recommendations available at the moment. Try exploring more cities!</p>
+          <p>暂时没有可用的推荐。请尝试探索更多城市！</p>
         </StatusContainer>
       )}
 
@@ -651,15 +651,15 @@ const AIRecommendations = () => {
                   <CardHeader>{recommendations[0].city}, {recommendations[0].country}</CardHeader>
                   <CardText>{recommendations[0].reason}</CardText>
                   {recommendations[0].inferred_preferences && recommendations[0].inferred_preferences.length > 0 && (
-                    <CardSubText>Based on: {recommendations[0].inferred_preferences.join(', ')}</CardSubText>
+                    <CardSubText>基于偏好：{recommendations[0].inferred_preferences.join('、')}</CardSubText>
                   )}
                   <AddButton
                     onClick={() => handleAddCityToTravel(recommendations[0])}
                     disabled={recommendations[0].latitude == null || recommendations[0].longitude == null}
-                    title={recommendations[0].latitude == null || recommendations[0].longitude == null ? "Missing location info" : "Add to my travel"}
+                    title={recommendations[0].latitude == null || recommendations[0].longitude == null ? "缺少位置信息" : "添加到我的旅行"}
                   >
                     <FaPlusCircle />
-                    {recommendations[0].latitude == null || recommendations[0].longitude == null ? "Cannot Add" : "Add to Travel"}
+                    {recommendations[0].latitude == null || recommendations[0].longitude == null ? "无法添加" : "添加到旅行"}
                   </AddButton>
                 </RecommendationCard>
               </div>
@@ -673,15 +673,15 @@ const AIRecommendations = () => {
                     <CardHeader>{rec.city}, {rec.country}</CardHeader>
                     <CardText>{rec.reason}</CardText>
                     {rec.inferred_preferences && rec.inferred_preferences.length > 0 && (
-                      <CardSubText>Based on: {rec.inferred_preferences.join(', ')}</CardSubText>
+                      <CardSubText>基于偏好：{rec.inferred_preferences.join('、')}</CardSubText>
                     )}
                     <AddButton
                       onClick={() => handleAddCityToTravel(rec)}
                       disabled={rec.latitude == null || rec.longitude == null}
-                      title={rec.latitude == null || rec.longitude == null ? "Missing location info" : "Add to my travel"}
+                      title={rec.latitude == null || rec.longitude == null ? "缺少位置信息" : "添加到我的旅行"}
                     >
                       <FaPlusCircle />
-                      {rec.latitude == null || rec.longitude == null ? "Cannot Add" : "Add to Travel"}
+                      {rec.latitude == null || rec.longitude == null ? "无法添加" : "添加到旅行"}
                     </AddButton>
                   </RecommendationCard>
                 </div>
