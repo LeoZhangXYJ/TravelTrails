@@ -155,6 +155,28 @@ export const TravelProvider = ({ children }) => {
     return disabledDates;
   };
 
+  // 获取按日期排序的城市序列（用于轨迹浏览）
+  const getSortedCitiesForTour = () => {
+    return cities
+      .slice() // 创建副本
+      .sort((a, b) => {
+        // 首先处理起点（没有日期的城市）
+        if (!a.startDate && !b.startDate) return 0;
+        if (!a.startDate) return -1; // 起点排在最前面
+        if (!b.startDate) return 1;
+        
+        // 按开始日期排序
+        const dateA = new Date(a.startDate);
+        const dateB = new Date(b.startDate);
+        return dateA - dateB;
+      });
+  };
+
+  // 获取原始数组中城市的索引（从排序后的城市获取）
+  const getOriginalIndexFromSortedCity = (sortedCity) => {
+    return cities.findIndex(city => city.id === sortedCity.id);
+  };
+
   const stats = {
     totalCities: cities.length,
   };
@@ -186,7 +208,9 @@ export const TravelProvider = ({ children }) => {
     },
     getOccupiedDateRanges,
     checkDateConflict,
-    getDisabledDates
+    getDisabledDates,
+    getSortedCitiesForTour,
+    getOriginalIndexFromSortedCity
   };
 
   return (

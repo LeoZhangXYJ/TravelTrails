@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Viewer, Entity, PolylineGraphics } from 'resium';
-import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler } from 'cesium';
+import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
+import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4 } from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
 import '../../cesiumConfig';
 
@@ -44,8 +44,31 @@ const getPolylineMaterial = (transportMode) => {
   }
 };
 
+// 获取交通工具图标的函数
+const getTransportIcon = (transportMode) => {
+  // 使用 Unicode 字符作为图标，因为它们在所有系统上都可用
+  switch (transportMode) {
+    case 'plane':
+      return '✈️';
+    case 'train':
+      return '🚂';
+    case 'car':
+      return '🚗';
+    case 'bus':
+      return '🚌';
+    case 'boat':
+      return '🚢';
+    case 'bicycle':
+      return '🚴';
+    case 'walk':
+      return '🚶';
+    default:
+      return '🚀';
+  }
+};
+
 const TARGET_CITY_HEIGHT = 20000; // 20km
-const TARGET_CITY_PITCH = CesiumMath.toRadians(-90); // 正上方
+const TARGET_CITY_PITCH = CesiumMath.toRadians(-90); // 正对地面
 
 const GLOBE_VIEW_HEIGHT_INITIAL_ZOOM_OUT = 3e6; // 3000km für initialen Zoom Out auf "Home"
 const GLOBE_VIEW_HEIGHT_TRANSITION = 3e6; // 3000km für Übergangs-Zoom Out zwischen Städten
@@ -58,13 +81,17 @@ const CesiumMap = () => {
     tourIndex, 
     setTourIndex,
     stopTour,
-    selectCityById
+    selectCityById,
+    getSortedCitiesForTour,
+    getOriginalIndexFromSortedCity
   } = useTravelContext();
   
   const viewerRef = useRef(null);
   const creditContainerRef = useRef(document.createElement("div")); // 用于隐藏版权信息
   const [initialTourFlightPerformed, setInitialTourFlightPerformed] = useState(false);
   const prevIsTouring = useRef(isTouring);
+  const [movingIcon, setMovingIcon] = useState(null);
+  const [currentTransportMode, setCurrentTransportMode] = useState(null);
 
   // 初始化Cesium Viewer
   useEffect(() => {
@@ -81,12 +108,13 @@ const CesiumMap = () => {
       }
     });
     
-    // 禁用默认的导航控件
-    viewer.scene.screenSpaceCameraController.enableRotate = false;
-    viewer.scene.screenSpaceCameraController.enableTranslate = false;
-    viewer.scene.screenSpaceCameraController.enableZoom = false;
-    viewer.scene.screenSpaceCameraController.enableTilt = false;
-    viewer.scene.screenSpaceCameraController.enableLook = false;
+    // 保持默认的导航控件启用，用户可以自由操作地图
+    // 注释掉禁用导航控件的代码
+    // viewer.scene.screenSpaceCameraController.enableRotate = false;
+    // viewer.scene.screenSpaceCameraController.enableTranslate = false;
+    // viewer.scene.screenSpaceCameraController.enableZoom = false;
+    // viewer.scene.screenSpaceCameraController.enableTilt = false;
+    // viewer.scene.screenSpaceCameraController.enableLook = false;
   }, []);
 
   // 处理选中城市变化时的视角飞行
@@ -120,6 +148,8 @@ const CesiumMap = () => {
   useEffect(() => {
     if (!isTouring && prevIsTouring.current) {
       setInitialTourFlightPerformed(false);
+      // 清理移动图标
+      stopMovingIcon();
     }
     prevIsTouring.current = isTouring;
   }, [isTouring]);
@@ -129,10 +159,12 @@ const CesiumMap = () => {
     if (!isTouring || cities.length < 2 || !viewerRef.current?.cesiumElement) return;
     
     const viewer = viewerRef.current.cesiumElement;
-    const homeCity = cities[0];
-    const currentTravelCity = cities[tourIndex]; 
-    const nextTravelActualIndex = (tourIndex + 1) % cities.length;
-    const nextTravelCity = cities[nextTravelActualIndex]; 
+    
+    // 使用按日期排序的城市序列
+    const sortedCities = getSortedCitiesForTour();
+    const currentTravelCity = sortedCities[tourIndex]; 
+    const nextTravelActualIndex = (tourIndex + 1) % sortedCities.length;
+    const nextTravelCity = sortedCities[nextTravelActualIndex]; 
 
     // Validate coordinates for current and next city in tour
     if (!currentTravelCity || !currentTravelCity.coordinates || typeof currentTravelCity.coordinates.lat !== 'number' || typeof currentTravelCity.coordinates.lon !== 'number') {
@@ -146,13 +178,13 @@ const CesiumMap = () => {
       return;
     }
     
-    // Schnellere Phasendauer (需求 2)
+    // 调整动画时长参数
     const distance = calculateDistance(
         currentTravelCity.coordinates.lat, currentTravelCity.coordinates.lon,
         nextTravelCity.coordinates.lat, nextTravelCity.coordinates.lon
     );
-    const phaseDuration = Math.min(Math.max(distance * 25, 700), 1500) / 1000; // 0.7s - 1.5s pro Phase
-    const cityStayDuration = 800; // Kürzere Verweildauer
+    const phaseDuration = Math.min(Math.max(distance * 50, 2000), 5000) / 1000; // 增加时长：2s - 5s pro Phase
+    const cityStayDuration = 1500; // 增加城市停留时间
 
     const performTwoStageFlight = (fromCity, toCity, onComplete) => {
       // Add checks inside performTwoStageFlight as well, as it's a critical part
@@ -163,66 +195,101 @@ const CesiumMap = () => {
         return;
       }
 
-      const intermediateDestination = Cartesian3.fromDegrees(
-          (fromCity.coordinates.lon + toCity.coordinates.lon) / 2,
-          (fromCity.coordinates.lat + toCity.coordinates.lat) / 2,
-          GLOBE_VIEW_HEIGHT_TRANSITION
-      );
-      const finalDestination = Cartesian3.fromDegrees(
-          toCity.coordinates.lon, toCity.coordinates.lat, TARGET_CITY_HEIGHT
-      );
-      const commonOrientation = { heading: CesiumMath.toRadians(0), pitch: TARGET_CITY_PITCH, roll: 0.0 };
-      const globeOrientation = { heading: CesiumMath.toRadians(0), pitch: CesiumMath.toRadians(-90), roll: 0.0 };
+      // 清理之前的移动图标
+      stopMovingIcon();
 
+      // 计算包含两个城市的中心点和合适的视角
+      const centerLon = (fromCity.coordinates.lon + toCity.coordinates.lon) / 2;
+      const centerLat = (fromCity.coordinates.lat + toCity.coordinates.lat) / 2;
+      
+      // 计算两城市之间的距离，决定合适的观察高度
+      const distance = calculateDistance(
+        fromCity.coordinates.lat, fromCity.coordinates.lon,
+        toCity.coordinates.lat, toCity.coordinates.lon
+      );
+      
+      // 根据距离动态调整观察高度，确保两个城市都在视野内
+      const overviewHeight = Math.max(distance * 1000 * 2, 100000); // 至少100km高度
+      const overviewDestination = Cartesian3.fromDegrees(centerLon, centerLat, overviewHeight);
+      const finalDestination = Cartesian3.fromDegrees(toCity.coordinates.lon, toCity.coordinates.lat, TARGET_CITY_HEIGHT);
+      
+      // 使用正对地面的视角
+      const overviewOrientation = { 
+        heading: CesiumMath.toRadians(0), 
+        pitch: CesiumMath.toRadians(-90), // 正对地面
+        roll: 0.0 
+      };
+      const finalOrientation = { 
+        heading: CesiumMath.toRadians(0), 
+        pitch: TARGET_CITY_PITCH, 
+        roll: 0.0 
+      };
+
+      // 第一阶段：缩小到能看到两个城市的视角
       viewer.camera.flyTo({
-          destination: intermediateDestination,
-          orientation: globeOrientation,
-          duration: phaseDuration,
+          destination: overviewDestination,
+          orientation: overviewOrientation,
+          duration: phaseDuration * 0.3,
           complete: () => {
               if (!isTouring) return;
-              viewer.camera.flyTo({
-                  destination: finalDestination,
-                  orientation: commonOrientation, 
-                  duration: phaseDuration,
-                  complete: onComplete
-              });
+              
+              // 第二阶段：启动图标移动，相机保持不动
+              const iconMovementDuration = phaseDuration * 1.4;
+              startMovingIconWithStaticCamera(fromCity, toCity, toCity.transportMode, iconMovementDuration);
+              
+              // 等待图标移动完成
+              setTimeout(() => {
+                if (!isTouring) return;
+                
+                // 停止图标移动
+                stopMovingIcon();
+                
+                // 第三阶段：放大到目标城市
+                viewer.camera.flyTo({
+                    destination: finalDestination,
+                    orientation: finalOrientation, 
+                    duration: phaseDuration * 0.3,
+                    complete: onComplete
+                });
+              }, iconMovementDuration * 1000);
           }
       });
     };
 
-    if (tourIndex === 0 && cities[0]?.transportMode === 'home' && !initialTourFlightPerformed) {
+    if (tourIndex === 0 && sortedCities[0]?.transportMode === 'home' && !initialTourFlightPerformed) {
       // Spezielle Startanimation für "Home" (需求 1)
       // Ensure homeCity coordinates are valid before starting animation
-      if (!homeCity || !homeCity.coordinates || typeof homeCity.coordinates.lat !== 'number' || typeof homeCity.coordinates.lon !== 'number') {
-        console.warn("CesiumMap Tour: homeCity has invalid coordinates for initial animation", homeCity);
+      if (!sortedCities[0] || !sortedCities[0].coordinates || typeof sortedCities[0].coordinates.lat !== 'number' || typeof sortedCities[0].coordinates.lon !== 'number') {
+        console.warn("CesiumMap Tour: homeCity has invalid coordinates for initial animation", sortedCities[0]);
         stopTour();
         return;
       }
       setInitialTourFlightPerformed(true);
-      const initialZoomOutDest = Cartesian3.fromDegrees(homeCity.coordinates.lon, homeCity.coordinates.lat, GLOBE_VIEW_HEIGHT_INITIAL_ZOOM_OUT);
-      const homeDestination = Cartesian3.fromDegrees(homeCity.coordinates.lon, homeCity.coordinates.lat, TARGET_CITY_HEIGHT);
-      const commonOrientation = { heading: CesiumMath.toRadians(0), pitch: TARGET_CITY_PITCH, roll: 0.0 };
+      const initialZoomOutDest = Cartesian3.fromDegrees(sortedCities[0].coordinates.lon, sortedCities[0].coordinates.lat, GLOBE_VIEW_HEIGHT_INITIAL_ZOOM_OUT);
+      const homeDestination = Cartesian3.fromDegrees(sortedCities[0].coordinates.lon, sortedCities[0].coordinates.lat, TARGET_CITY_HEIGHT);
+      const initialOrientation = { heading: CesiumMath.toRadians(0), pitch: CesiumMath.toRadians(-90), roll: 0.0 }; // 正对地面
+      const homeOrientation = { heading: CesiumMath.toRadians(0), pitch: TARGET_CITY_PITCH, roll: 0.0 };
 
       viewer.camera.flyTo({ // Zoom out von aktueller Position auf globale Sicht über Home
         destination: initialZoomOutDest,
-        orientation: commonOrientation, // Zuerst -90 Grad Pitch beibehalten
+        orientation: initialOrientation, // 使用自然的俯视角度
         duration: 1.0, // Dauer für initialen Zoom Out
         complete: () => {
           if (!isTouring) return;
           viewer.camera.flyTo({ // Zoom in auf Home
             destination: homeDestination,
-            orientation: commonOrientation,
+            orientation: homeOrientation,
             duration: 1.0, // Dauer für Zoom In auf Home
             complete: () => {
               if (!isTouring) return;
               setTimeout(() => {
                 if (!isTouring) return;
                 // Starte den normalen Zwei-Phasen-Flug von Home zum ersten Reiseziel
-                performTwoStageFlight(homeCity, nextTravelCity, () => {
+                performTwoStageFlight(sortedCities[0], nextTravelCity, () => {
                   if (!isTouring) return;
                   setTimeout(() => {
                     if (!isTouring) return;
-                    if (cities.length <= 2 && tourIndex === 0) { // Spezialfall: Home + 1 Ziel
+                    if (sortedCities.length <= 2 && tourIndex === 0) { // Spezialfall: Home + 1 Ziel
                         stopTour();
                     } else {
                         setTourIndex(nextTravelActualIndex);
@@ -240,7 +307,7 @@ const CesiumMap = () => {
         if (!isTouring) return;
         setTimeout(() => {
           if (!isTouring) return;
-          if (tourIndex === cities.length - 2) { 
+          if (tourIndex === sortedCities.length - 2) { 
             stopTour();
           } else {
             setTourIndex(nextTravelActualIndex);
@@ -272,6 +339,108 @@ const CesiumMap = () => {
     };
   }, [selectCityById, cities, isTouring, stopTour]); // isTouring, stopTour hinzugefügt
 
+  // 创建移动的交通工具图标
+  const createMovingIcon = (fromCity, toCity, transportMode, viewer, duration) => {
+    if (!fromCity || !toCity || !viewer) return null;
+
+    // 直接使用当前时间，不设置时钟
+    const startPosition = Cartesian3.fromDegrees(
+      fromCity.coordinates.lon,
+      fromCity.coordinates.lat,
+      50000 // 提高图标高度，确保可见
+    );
+    const endPosition = Cartesian3.fromDegrees(
+      toCity.coordinates.lon,
+      toCity.coordinates.lat,
+      50000 // 提高图标高度，确保可见
+    );
+
+    // 创建移动实体（不使用时间相关的位置属性）
+    const movingEntity = {
+      id: 'moving-transport-icon',
+      position: startPosition, // 初始位置
+      label: {
+        text: getTransportIcon(transportMode),
+        font: '56pt sans-serif', // 进一步增大字体
+        pixelOffset: new Cartesian2(0, -40),
+        fillColor: Color.YELLOW, // 使用明亮的黄色，更容易看见
+        outlineColor: Color.BLACK,
+        outlineWidth: 4, // 更粗的边框
+        style: 1, // FILL_AND_OUTLINE
+        heightReference: HeightReference.NONE, // 不贴地，保持固定高度
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        scale: 2.0, // 增加缩放
+        translucencyByDistance: undefined, // 确保在任何距离都可见
+        scaleByDistance: undefined // 确保在任何距离都保持大小
+      }
+    };
+
+    return { entity: movingEntity, startPosition, endPosition, duration };
+  };
+
+  // 启动移动图标，相机保持静止
+  const startMovingIconWithStaticCamera = (fromCity, toCity, transportMode, duration) => {
+    if (!viewerRef.current?.cesiumElement) return;
+    
+    const viewer = viewerRef.current.cesiumElement;
+    const iconData = createMovingIcon(fromCity, toCity, transportMode, viewer, duration);
+    
+    if (iconData) {
+      // 先添加图标实体到viewer
+      viewer.entities.add({
+        id: iconData.entity.id,
+        position: iconData.entity.position,
+        label: iconData.entity.label
+      });
+      
+      setMovingIcon(iconData.entity);
+      setCurrentTransportMode(transportMode);
+      
+      // 调整动画参数 - 图标移动时相机保持不动
+      const steps = 200; // 平滑的动画步数
+      const stepDuration = (duration * 1000) / steps; // 每步的时间（毫秒）
+      let currentStep = 0;
+      
+      const animateIconOnly = () => {
+        if (!isTouring || currentStep >= steps) return;
+        
+        const progress = currentStep / steps;
+        
+        // 插值经纬度
+        const currentLon = fromCity.coordinates.lon + 
+          (toCity.coordinates.lon - fromCity.coordinates.lon) * progress;
+        const currentLat = fromCity.coordinates.lat + 
+          (toCity.coordinates.lat - fromCity.coordinates.lat) * progress;
+        
+        const currentPosition = Cartesian3.fromDegrees(currentLon, currentLat, 50000);
+        
+        // 只更新图标位置，不移动相机
+        const entity = viewer.entities.getById('moving-transport-icon');
+        if (entity) {
+          entity.position = currentPosition;
+        }
+        
+        currentStep++;
+        if (currentStep < steps) {
+          setTimeout(animateIconOnly, stepDuration);
+        }
+      };
+      
+      // 开始动画
+      animateIconOnly();
+    }
+  };
+
+  // 停止移动图标和摄像机跟随
+  const stopMovingIcon = () => {
+    if (!viewerRef.current?.cesiumElement) return;
+    
+    const viewer = viewerRef.current.cesiumElement;
+    viewer.entities.removeById('moving-transport-icon');
+    setMovingIcon(null);
+    setCurrentTransportMode(null);
+  };
+
   return (
     <div id="cesiumContainer" style={{ width: '100%', height: '100%' }}>
       <Viewer
@@ -297,6 +466,15 @@ const CesiumMap = () => {
             console.warn("CesiumMap: Skipping rendering city due to invalid coordinates:", city);
             return null; // Don't render this entity
           }
+          
+          // 在轨迹浏览时，高亮当前排序后的城市
+          let isHighlighted = index === currentCityIndex;
+          if (isTouring) {
+            const sortedCities = getSortedCitiesForTour();
+            const currentTourCity = sortedCities[tourIndex];
+            isHighlighted = city.id === currentTourCity?.id;
+          }
+          
           return (
             <Entity
               key={`city-entity-${city.id || index}`}
@@ -307,14 +485,14 @@ const CesiumMap = () => {
                 city.coordinates.lat
               )}
               point={{
-                pixelSize: index === currentCityIndex || (isTouring && index === tourIndex) ? 24 : 18,
-                color: index === currentCityIndex || (isTouring && index === tourIndex) 
+                pixelSize: isHighlighted ? 24 : 18,
+                color: isHighlighted 
                   ? Color.fromCssColorString('#ff4500').withAlpha(1.0)
                   : Color.fromCssColorString('#1e90ff').withAlpha(1.0),
-                outlineColor: index === currentCityIndex || (isTouring && index === tourIndex)
+                outlineColor: isHighlighted
                   ? Color.YELLOW
                   : Color.WHITE,
-                outlineWidth: index === currentCityIndex || (isTouring && index === tourIndex) ? 4 : 3,
+                outlineWidth: isHighlighted ? 4 : 3,
                 heightReference: HeightReference.CLAMP_TO_GROUND,
                 scaleByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4),
                 translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
@@ -324,9 +502,10 @@ const CesiumMap = () => {
         })}
 
         {/* 渲染城市间连线 */}
-        {cities.length > 1 &&
-          cities.slice(0, -1).map((city, index) => {
-            const nextCity = cities[index + 1];
+        {cities.length > 1 && (() => {
+          const sortedCities = getSortedCitiesForTour();
+          return sortedCities.slice(0, -1).map((city, index) => {
+            const nextCity = sortedCities[index + 1];
             // Defensive check for rendering polylines
             if (!city || !city.coordinates || typeof city.coordinates.lat !== 'number' || typeof city.coordinates.lon !== 'number' ||
                 !nextCity || !nextCity.coordinates || typeof nextCity.coordinates.lat !== 'number' || typeof nextCity.coordinates.lon !== 'number') {
@@ -335,7 +514,7 @@ const CesiumMap = () => {
             }
             let material = getPolylineMaterial(nextCity.transportMode);
             // Hervorhebung der aktiven Route im Tour-Modus
-            // Die aktive Route ist die vom aktuellen `tourIndex` zum `(tourIndex + 1) % cities.length`
+            // Die aktive Route ist die vom aktuellen `tourIndex` zum `(tourIndex + 1) % sortedCities.length`
             if (isTouring && index === tourIndex) { 
               if (nextCity.transportMode === 'plane' || nextCity.transportMode === 'boat' || 
                   nextCity.transportMode === 'bicycle' || nextCity.transportMode === 'walk') {
@@ -361,7 +540,10 @@ const CesiumMap = () => {
                 />
               </Entity>
             );
-          })}
+          });
+        })()}
+        
+        {/* 移动图标现在直接通过viewer.entities.add添加，不需要在这里渲染 */}
       </Viewer>
     </div>
   );

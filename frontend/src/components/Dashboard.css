@@ -106,6 +106,20 @@
   flex: 1;
   position: relative;
   background: #e2e8f0;
+  height: 100%;
+  min-height: calc(100vh - 4rem);
+}
+
+/* 确保CesiumMap容器正确填充 */
+.dashboard-main #cesiumContainer {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Cesium viewer 样式调整 */
+.dashboard-main .cesium-viewer {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* 响应式设计 */
