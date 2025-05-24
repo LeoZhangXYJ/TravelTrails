@@ -16,5 +16,17 @@
     "email": "leo_zhang_10@foxmail.com",
     "password": "Leozhang666",
     "disabled": false
+  },
+  "test": {
+    "username": "test",
+    "email": "test@example.com",
+    "password": "123456",
+    "disabled": false
+  },
+  "解哲康": {
+    "username": "解哲康",
+    "email": "3230102750@zju.edu.cn",
+    "password": "111",
+    "disabled": false
   }
 }

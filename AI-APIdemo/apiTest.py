@@ -5,6 +5,10 @@ import json
 import os
 from typing import List, Optional
 from dotenv import load_dotenv
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
+import asyncio
+from fastapi.middleware.cors import CORSMiddleware
 
 # 加载环境变量
 load_dotenv()
@@ -16,6 +20,21 @@ if not DEEPSEEK_API_KEY:
 
 # 创建 FastAPI 应用
 app = FastAPI(title="Travel AI API 测试")
+
+# 配置 CORS
+origins = [
+    "http://localhost:3000",  # 允许来自前端的请求
+    "http://localhost:3001",  # 如果前端也可能在3001端口
+    # 根据需要可以添加更多源
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有方法 (GET, POST, etc.)
+    allow_headers=["*"],  # 允许所有头部
+)
 
 # 定义数据模型
 class City(BaseModel):
@@ -30,6 +49,8 @@ class RecommendationResponse(BaseModel):
     country: str
     inferred_preferences: List[str]
     reason: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 # 读取 JSON 文件的函数
 def read_visited_cities():
@@ -37,10 +58,62 @@ def read_visited_cities():
         data = json.load(f)
     return data
 
+# 预定义的推荐列表，用于没有历史记录时
+PREDEFINED_RECOMMENDATIONS = [
+    {
+        "city": "巴黎",
+        "country": "法国",
+        "inferred_preferences": ["浪漫", "艺术", "历史"],
+        "reason": "浪漫之都，拥有埃菲尔铁塔和卢浮宫等著名景点。",
+        "latitude": 48.8566,
+        "longitude": 2.3522
+    },
+    {
+        "city": "东京",
+        "country": "日本",
+        "inferred_preferences": ["现代", "文化", "美食"],
+        "reason": "现代与传统交织的繁华都市，美食与购物的天堂。",
+        "latitude": 35.6895,
+        "longitude": 139.6917
+    },
+    {
+        "city": "罗马",
+        "country": "意大利",
+        "inferred_preferences": ["历史", "文化", "古迹"],
+        "reason": "永恒之城，遍布古罗马遗址和文艺复兴时期的艺术杰作。",
+        "latitude": 41.9028,
+        "longitude": 12.4964
+    },
+    {
+        "city": "巴厘岛", # 注意：巴厘岛是岛屿，地理编码可能指向中心区域
+        "country": "印度尼西亚",
+        "inferred_preferences": ["海滩", "自然", "休闲"],
+        "reason": "美丽的度假胜地，拥有迷人的海滩、火山和稻田景观。",
+        "latitude": -8.3405,
+        "longitude": 115.0920
+    },
+    {
+        "city": "纽约",
+        "country": "美国",
+        "inferred_preferences": ["都市", "文化", "多元"],
+        "reason": "世界之都，充满活力的国际大都市，景点和活动丰富多样。",
+        "latitude": 40.7128,
+        "longitude": -74.0060
+    }
+]
+
+# 初始化地理编码器
+geolocator = Nominatim(user_agent="travel_recommender_app") # 替换为你的应用名称
+# 为了尊重 Nominatim 的使用策略，添加速率限制器，每秒最多1个请求
+geocode_with_limiter = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+
 # API 测试端点
 @app.post("/test-api", response_model=List[RecommendationResponse])
 async def test_ai_api(request: VisitedCitiesRequest):
     """测试调用 Deepseek API 获取旅行推荐"""
+    
+    if not request.visitedCities:
+        return PREDEFINED_RECOMMENDATIONS
     
     try:
         # 使用请求中提供的城市数据
@@ -116,8 +189,28 @@ async def test_ai_api(request: VisitedCitiesRequest):
                     content = json_match.group()
                 
                 # 解析 JSON
-                recommendations = json.loads(content)
-                return recommendations
+                recommendations_from_ai = json.loads(content)
+                
+                # 为每个推荐的城市获取经纬度
+                recommendations_with_coords = []
+                for rec in recommendations_from_ai:
+                    try:
+                        location_query = f'{rec["city"]}, {rec["country"]}'
+                        location = await asyncio.to_thread(geocode_with_limiter, location_query, timeout=15)
+                        if location:
+                            rec["latitude"] = location.latitude
+                            rec["longitude"] = location.longitude
+                        else:
+                            rec["latitude"] = None
+                            rec["longitude"] = None
+                            print(f"地理编码未找到: {location_query}")
+                    except Exception as geo_e:
+                        print(f"地理编码错误 for {rec.get('city')}: {geo_e}")
+                        rec["latitude"] = None
+                        rec["longitude"] = None
+                    recommendations_with_coords.append(RecommendationResponse(**rec))
+                
+                return recommendations_with_coords
             except KeyError as e:
                 print(f"API响应结构错误: {e}")
                 print(f"响应内容: {result}")
@@ -135,8 +228,26 @@ async def test_ai_api(request: VisitedCitiesRequest):
                 if json_match:
                     content = json_match.group()
                     try:
-                        recommendations = json.loads(content)
-                        return recommendations
+                        recommendations_from_ai = json.loads(content)
+                        # 为每个推荐的城市获取经纬度 (同样需要在这里处理)
+                        recommendations_with_coords = []
+                        for rec in recommendations_from_ai:
+                            try:
+                                location_query = f'{rec["city"]}, {rec["country"]}'
+                                location = await asyncio.to_thread(geocode_with_limiter, location_query, timeout=15)
+                                if location:
+                                    rec["latitude"] = location.latitude
+                                    rec["longitude"] = location.longitude
+                                else:
+                                    rec["latitude"] = None
+                                    rec["longitude"] = None
+                                    print(f"地理编码未找到: {location_query}")
+                            except Exception as geo_e:
+                                print(f"地理编码错误 for {rec.get('city')}: {geo_e}")
+                                rec["latitude"] = None
+                                rec["longitude"] = None
+                            recommendations_with_coords.append(RecommendationResponse(**rec))
+                        return recommendations_with_coords
                     except json.JSONDecodeError:
                         pass
                 
@@ -152,4 +263,4 @@ async def test_ai_api(request: VisitedCitiesRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="localhost", port=8001)
