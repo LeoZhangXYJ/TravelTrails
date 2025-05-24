@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
 import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4, Cartographic } from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
+import PhotoOverlay from '../PhotoOverlay';
 import '../../cesiumConfig';
 
 // Hilfsfunktion zur Bestimmung des Linienmaterials basierend auf dem Transportmittel
@@ -96,6 +97,11 @@ const CesiumMap = () => {
   const currentAnimation = useRef(null); // 存储当前动画的引用
   const allTimeouts = useRef([]); // 存储所有定时器引用
   const cameraFlightInProgress = useRef(false); // 存储相机飞行状态
+  
+  // 照片播放相关状态
+  const [showPhotoOverlay, setShowPhotoOverlay] = useState(false);
+  const [currentPhotoCity, setCurrentPhotoCity] = useState(null);
+  const [waitingForPhotos, setWaitingForPhotos] = useState(false);
 
   // 初始化Cesium Viewer
   useEffect(() => {
@@ -280,9 +286,14 @@ const CesiumMap = () => {
                       duration: phaseDuration * 0.2, // 进一步缩短相机移动时间
                       complete: () => {
                         cameraFlightInProgress.current = false;
-                        if (isTouring && onComplete) {
-                          onComplete();
-                        }
+                        if (!isTouring) return;
+                        
+                        // 到达目标城市后，先播放照片（如果有），再执行完成回调
+                        startCityPhotoShow(toCity, () => {
+                          if (isTouring && onComplete) {
+                            onComplete();
+                          }
+                        });
                       }
                   });
                 }, iconMovementDuration * 1000);
@@ -321,18 +332,24 @@ const CesiumMap = () => {
               if (!isTouring) return;
               const homeStayTimeout = setTimeout(() => {
                 if (!isTouring) return;
-                // Starte den normalen Zwei-Phasen-Flug von Home zum ersten Reiseziel
-                performTwoStageFlight(sortedCities[0], nextTravelCity, () => {
+                
+                // 在Home城市播放照片（如果有）
+                startCityPhotoShow(sortedCities[0], () => {
                   if (!isTouring) return;
-                  const nextTimeout = setTimeout(() => {
+                  
+                  // Starte den normalen Zwei-Phasen-Flug von Home zum ersten Reiseziel
+                  performTwoStageFlight(sortedCities[0], nextTravelCity, () => {
                     if (!isTouring) return;
-                    if (sortedCities.length <= 2 && tourIndex === 0) { // Spezialfall: Home + 1 Ziel
-                        stopTour();
-                    } else {
-                        setTourIndex(nextTravelActualIndex);
-                    }
-                  }, cityStayDuration);
-                  allTimeouts.current.push(nextTimeout);
+                    const nextTimeout = setTimeout(() => {
+                      if (!isTouring) return;
+                      if (sortedCities.length <= 2 && tourIndex === 0) { // Spezialfall: Home + 1 Ziel
+                          stopTour();
+                      } else {
+                          setTourIndex(nextTravelActualIndex);
+                      }
+                    }, cityStayDuration);
+                    allTimeouts.current.push(nextTimeout);
+                  });
                 });
               }, cityStayDuration); // Am "Home" Punkt verweilen
               allTimeouts.current.push(homeStayTimeout);
@@ -556,6 +573,14 @@ const CesiumMap = () => {
     animationRunning.current = false;
     cameraFlightInProgress.current = false;
     
+    // 清理照片播放状态
+    setShowPhotoOverlay(false);
+    setCurrentPhotoCity(null);
+    setWaitingForPhotos(false);
+    if (window.photoPlaybackComplete) {
+      window.photoPlaybackComplete = null;
+    }
+    
     // 清除当前动画定时器
     if (currentAnimation.current) {
       clearTimeout(currentAnimation.current);
@@ -594,12 +619,55 @@ const CesiumMap = () => {
     setMovingIcon(null);
     setCurrentTransportMode(null);
     
-    console.log('所有动画和定时器状态已清理');
+    console.log('所有动画、定时器和照片播放状态已清理');
   };
 
   // 停止移动图标和摄像机跟随（保留原方法名以兼容）
   const stopMovingIcon = () => {
     stopAllAnimationsAndTimers();
+  };
+
+  // 检查城市是否有照片需要播放
+  const cityHasPhotos = (city) => {
+    return city && city.photos && Array.isArray(city.photos) && city.photos.length > 0;
+  };
+
+  // 开始播放城市照片
+  const startCityPhotoShow = (city, onComplete) => {
+    if (!cityHasPhotos(city)) {
+      // 如果没有照片，直接继续
+      if (onComplete) onComplete();
+      return;
+    }
+
+    console.log(`开始播放 ${city.name} 的照片，共 ${city.photos.length} 张`);
+    setCurrentPhotoCity(city);
+    setShowPhotoOverlay(true);
+    setWaitingForPhotos(true);
+    
+    // 存储完成回调
+    window.photoPlaybackComplete = onComplete;
+  };
+
+  // 照片播放完成的处理
+  const handlePhotoOverlayClose = () => {
+    console.log('照片播放完成');
+    setShowPhotoOverlay(false);
+    setCurrentPhotoCity(null);
+    setWaitingForPhotos(false);
+    
+    // 执行存储的回调函数
+    if (window.photoPlaybackComplete) {
+      const callback = window.photoPlaybackComplete;
+      window.photoPlaybackComplete = null;
+      
+      // 短暂延迟后继续轨迹，确保照片关闭动画完成
+      setTimeout(() => {
+        if (isTouring && callback) {
+          callback();
+        }
+      }, 400);
+    }
   };
 
   return (
@@ -706,6 +774,17 @@ const CesiumMap = () => {
         
         {/* 移动图标现在直接通过viewer.entities.add添加，不需要在这里渲染 */}
       </Viewer>
+      
+      {/* 轨迹浏览时的照片播放覆盖层 */}
+      {showPhotoOverlay && currentPhotoCity && (
+        <PhotoOverlay
+          photos={currentPhotoCity.photos}
+          cityName={currentPhotoCity.name}
+          country={currentPhotoCity.country}
+          onClose={handlePhotoOverlayClose}
+          sidebarWidth={0} // 在轨迹浏览时，照片居中显示
+        />
+      )}
     </div>
   );
 };

@@ -69,6 +69,39 @@ export const TravelProvider = ({ children }) => {
     );
   };
 
+  // 添加照片到当前选中的城市
+  const addPhotoToCurrentCity = (photoData) => {
+    if (currentCityIndex < 0 || !cities[currentCityIndex]) return;
+    
+    const currentCity = cities[currentCityIndex];
+    setCities(prevCities =>
+      prevCities.map(city => {
+        if (city.id === currentCity.id) {
+          const updatedPhotos = Array.isArray(city.photos) ? [...city.photos, photoData] : [photoData];
+          return { ...city, photos: updatedPhotos };
+        }
+        return city;
+      })
+    );
+  };
+
+  // 从城市中删除照片
+  const removePhotoFromCity = (cityIndex, photoIndex) => {
+    if (cityIndex < 0 || cityIndex >= cities.length) return;
+    
+    setCities(prevCities =>
+      prevCities.map((city, index) => {
+        if (index === cityIndex) {
+          const updatedPhotos = Array.isArray(city.photos) 
+            ? city.photos.filter((_, pIndex) => pIndex !== photoIndex)
+            : [];
+          return { ...city, photos: updatedPhotos };
+        }
+        return city;
+      })
+    );
+  };
+
   const startTour = () => {
     if (cities.length > 1) {
       setIsTouring(true);
@@ -199,6 +232,8 @@ export const TravelProvider = ({ children }) => {
     blogContent,
     setBlogContent,
     addPhotoToCity,
+    addPhotoToCurrentCity,
+    removePhotoFromCity,
     updateCityBlog: (cityId, blogText) => {
       setCities(prevCities =>
         prevCities.map(city =>

@@ -96,7 +96,7 @@ const RemoveButton = styled.button`
 const PhotoGallery = ({ onShowPhotos }) => {
   const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { cities, currentCityIndex, addPhotoToCity, removePhotoFromCity } = useTravelContext();
+  const { cities, currentCityIndex, addPhotoToCurrentCity, removePhotoFromCity } = useTravelContext();
 
   const currentCity = currentCityIndex >= 0 ? cities[currentCityIndex] : null;
   const isHomeBase = currentCity && currentCity.transportMode === 'home';
@@ -115,19 +115,29 @@ const PhotoGallery = ({ onShowPhotos }) => {
     if (files.length === 0) return;
 
     setIsLoading(true);
+    let filesProcessed = 0;
+    const totalFiles = files.length;
 
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
-        addPhotoToCity({
+        addPhotoToCurrentCity({
           url: event.target.result,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          name: file.name
         });
-        setIsLoading(false);
+        
+        filesProcessed++;
+        if (filesProcessed === totalFiles) {
+          setIsLoading(false);
+        }
       };
       reader.onerror = () => {
-        alert('读取文件失败');
-        setIsLoading(false);
+        alert('读取文件失败: ' + file.name);
+        filesProcessed++;
+        if (filesProcessed === totalFiles) {
+          setIsLoading(false);
+        }
       };
       reader.readAsDataURL(file);
     });
