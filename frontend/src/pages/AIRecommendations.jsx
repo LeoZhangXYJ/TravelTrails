@@ -390,7 +390,7 @@ const DateLabel = styled.label`
 
 const AIRecommendations = () => {
   const navigate = useNavigate();
-  const { cities, addCity } = useTravelContext();
+  const { cities, addCity, checkDateConflict, getDisabledDates } = useTravelContext();
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false); // 初始不加载，等待按钮点击或useEffect触发
   const [error, setError] = useState(null);
@@ -528,6 +528,20 @@ const AIRecommendations = () => {
         return;
       }
       
+      // 检查日期冲突
+      const conflictResult = checkDateConflict(
+        new Date(startDate).toISOString(),
+        new Date(endDate).toISOString()
+      );
+      
+      if (conflictResult && conflictResult.conflict) {
+        alert(
+          `选择的日期与 "${conflictResult.conflictCity}" 的旅行时间冲突！\n` +
+          `冲突日期：${conflictResult.conflictStart.toLocaleDateString()} - ${conflictResult.conflictEnd.toLocaleDateString()}`
+        );
+        return;
+      }
+      
       const newCityData = {
         name: selectedCity.city,
         country: selectedCity.country,
@@ -553,6 +567,12 @@ const AIRecommendations = () => {
     setSelectedTransport('plane');
     setStartDate('');
     setEndDate('');
+  };
+
+  // 获取禁用日期的字符串格式
+  const getDisabledDatesForInput = () => {
+    const disabledDates = getDisabledDates();
+    return disabledDates.map(date => date.toISOString().split('T')[0]);
   };
 
   const sliderSettings = {
@@ -705,7 +725,15 @@ const AIRecommendations = () => {
                     type="date"
                     value={startDate}
                     min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} // 明天
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      const selectedDate = e.target.value;
+                      const disabledDates = getDisabledDatesForInput();
+                      if (disabledDates.includes(selectedDate)) {
+                        alert('该日期已被其他旅行计划占用，请选择其他日期');
+                        return;
+                      }
+                      setStartDate(selectedDate);
+                    }}
                     required
                   />
                 </div>
@@ -715,7 +743,15 @@ const AIRecommendations = () => {
                     type="date"
                     value={endDate}
                     min={startDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => {
+                      const selectedDate = e.target.value;
+                      const disabledDates = getDisabledDatesForInput();
+                      if (disabledDates.includes(selectedDate)) {
+                        alert('该日期已被其他旅行计划占用，请选择其他日期');
+                        return;
+                      }
+                      setEndDate(selectedDate);
+                    }}
                     required
                   />
                 </div>

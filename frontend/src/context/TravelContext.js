@@ -98,6 +98,63 @@ export const TravelProvider = ({ children }) => {
     }
   };
 
+  // 获取所有已占用的日期范围
+  const getOccupiedDateRanges = (excludeCityId = null) => {
+    return cities
+      .filter(city => city.id !== excludeCityId && city.startDate && city.endDate)
+      .map(city => ({
+        cityId: city.id,
+        cityName: city.name,
+        startDate: new Date(city.startDate),
+        endDate: new Date(city.endDate)
+      }));
+  };
+
+  // 检查日期范围是否与已有城市冲突
+  const checkDateConflict = (startDate, endDate, excludeCityId = null) => {
+    if (!startDate || !endDate) return null;
+    
+    const newStart = new Date(startDate);
+    const newEnd = new Date(endDate);
+    const occupiedRanges = getOccupiedDateRanges(excludeCityId);
+    
+    for (const range of occupiedRanges) {
+      // 检查是否有重叠
+      if (
+        (newStart >= range.startDate && newStart <= range.endDate) ||
+        (newEnd >= range.startDate && newEnd <= range.endDate) ||
+        (newStart <= range.startDate && newEnd >= range.endDate)
+      ) {
+        return {
+          conflict: true,
+          conflictCity: range.cityName,
+          conflictStart: range.startDate,
+          conflictEnd: range.endDate
+        };
+      }
+    }
+    
+    return { conflict: false };
+  };
+
+  // 获取所有被占用的日期（用于日期选择器禁用）
+  const getDisabledDates = (excludeCityId = null) => {
+    const occupiedRanges = getOccupiedDateRanges(excludeCityId);
+    const disabledDates = [];
+    
+    occupiedRanges.forEach(range => {
+      const current = new Date(range.startDate);
+      const end = new Date(range.endDate);
+      
+      while (current <= end) {
+        disabledDates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+    });
+    
+    return disabledDates;
+  };
+
   const stats = {
     totalCities: cities.length,
   };
@@ -126,7 +183,10 @@ export const TravelProvider = ({ children }) => {
           city.id === cityId ? { ...city, blog: blogText } : city
         )
       );
-    }
+    },
+    getOccupiedDateRanges,
+    checkDateConflict,
+    getDisabledDates
   };
 
   return (

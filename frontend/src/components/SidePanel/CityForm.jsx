@@ -74,46 +74,63 @@ const CityForm = () => {
     <div className="city-management">
       <h3>已添加的城市</h3>
       <div className="city-list">
-        {cities.map((city, index) => (
-          <div 
-            key={city.id || index} 
-            className={`city-item ${index === currentCityIndex ? 'active' : ''}`}
-          >
-            <div className="city-info" onClick={() => setCurrentCityIndex(index)} style={{ cursor: 'pointer' }}>
-              <div className="city-main-info">
-                <span className="city-name">{city.name}</span>
-                <span className="city-transport-icon" style={{ marginLeft: '8px', marginRight: '4px' }}>
-                  {getTransportIcon(city.transportMode)}
-                </span>
-                {city.country && <span className="city-country"> - {city.country}</span>}
-              </div>
-              {formatDateRange(city.startDate, city.endDate) && (
-                <div className="city-date-info" style={{ 
-                  fontSize: '0.8rem', 
-                  color: '#666', 
-                  marginTop: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <FaCalendarAlt style={{ fontSize: '0.7rem' }} />
-                  {formatDateRange(city.startDate, city.endDate)}
-                </div>
-              )}
-            </div>
-            <div className="city-actions">
-              <button 
-                className="delete-btn"
-                onClick={(e) => { 
-                  e.stopPropagation();
-                  deleteCity(city.id);
-                }}
+        {cities
+          .slice() // 创建副本避免修改原数组
+          .sort((a, b) => {
+            // 首先处理起点（没有日期的城市）
+            if (!a.startDate && !b.startDate) return 0;
+            if (!a.startDate) return -1; // 起点排在最前面
+            if (!b.startDate) return 1;
+            
+            // 按开始日期排序
+            const dateA = new Date(a.startDate);
+            const dateB = new Date(b.startDate);
+            return dateA - dateB;
+          })
+          .map((city, index) => {
+            // 找到原数组中的索引
+            const originalIndex = cities.findIndex(c => c.id === city.id);
+            return (
+              <div 
+                key={city.id || index} 
+                className={`city-item ${originalIndex === currentCityIndex ? 'active' : ''}`}
               >
-                删除
-              </button>
-            </div>
-          </div>
-        ))}
+                <div className="city-info" onClick={() => setCurrentCityIndex(originalIndex)} style={{ cursor: 'pointer' }}>
+                  <div className="city-main-info">
+                    <span className="city-name">{city.name}</span>
+                    <span className="city-transport-icon" style={{ marginLeft: '8px', marginRight: '4px' }}>
+                      {getTransportIcon(city.transportMode)}
+                    </span>
+                    {city.country && <span className="city-country"> - {city.country}</span>}
+                  </div>
+                  {formatDateRange(city.startDate, city.endDate) && (
+                    <div className="city-date-info" style={{ 
+                      fontSize: '0.8rem', 
+                      color: '#666', 
+                      marginTop: '2px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <FaCalendarAlt style={{ fontSize: '0.7rem' }} />
+                      {formatDateRange(city.startDate, city.endDate)}
+                    </div>
+                  )}
+                </div>
+                <div className="city-actions">
+                  <button 
+                    className="delete-btn"
+                    onClick={(e) => { 
+                      e.stopPropagation();
+                      deleteCity(city.id);
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

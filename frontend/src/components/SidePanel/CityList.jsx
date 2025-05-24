@@ -32,7 +32,7 @@ async function geocodeCity(cityName, countryName = '') {
 }
 
 const CityList = () => {
-  const { addCity, cities } = useTravelContext();
+  const { addCity, cities, checkDateConflict, getDisabledDates } = useTravelContext();
   const [form] = Form.useForm();
   const [geocodingError, setGeocodingError] = useState(null);
   const [inputType, setInputType] = useState('city'); // 'city' oder 'coordinates'
@@ -101,6 +101,22 @@ const CityList = () => {
     if (!coordinates) {
       setGeocodingError('未能确定城市坐标，请检查输入。');
       return;
+    }
+
+    // 检查日期冲突（仅对非首城进行检查）
+    if (!isFirstCity && values.dateRange && values.dateRange[0] && values.dateRange[1]) {
+      const conflictResult = checkDateConflict(
+        values.dateRange[0].toISOString(),
+        values.dateRange[1].toISOString()
+      );
+      
+      if (conflictResult && conflictResult.conflict) {
+        setGeocodingError(
+          `选择的日期与 "${conflictResult.conflictCity}" 的旅行时间冲突！` +
+          `冲突日期：${conflictResult.conflictStart.toLocaleDateString()} - ${conflictResult.conflictEnd.toLocaleDateString()}`
+        );
+        return;
+      }
     }
 
     const cityData = {
@@ -247,7 +263,19 @@ const CityList = () => {
           disabled={isFirstCity}
           disabledDate={(current) => {
             // 禁用未来日期，只能选择今天及以前
-            return current && current.isAfter(new Date(), 'day');
+            if (current && current.isAfter(new Date(), 'day')) {
+              return true;
+            }
+            
+            // 禁用已被其他城市占用的日期
+            if (!isFirstCity) {
+              const disabledDates = getDisabledDates();
+              return disabledDates.some(disabledDate => 
+                current.isSame(disabledDate, 'day')
+              );
+            }
+            
+            return false;
           }}
           placeholder={['开始日期', '结束日期']}
         />
