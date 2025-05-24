@@ -71,7 +71,10 @@ const CityList = () => {
         if (!determinedCityName) {
             determinedCityName = isFirstCity ? "家" : "自定义位置";
         }
-        // Land bleibt wie eingegeben oder leer, da wir keine Rückwärts-Geokodierung machen
+        // 如果是自定义位置且国家为空，则设置默认国家
+        if (determinedCityName === "自定义位置" && !determinedCountry) {
+            determinedCountry = "未知区域";
+        }
       } else {
         // Validierung sollte dies bereits abfangen
         setGeocodingError('请输入有效的经度和纬度。');
@@ -204,17 +207,7 @@ const CityList = () => {
               label="纬度"
               rules={[
                 { required: inputType === 'coordinates', message: '请输入纬度' },
-                {
-                  validator: (_, value) => {
-                    if (!value && inputType === 'coordinates') {
-                      return Promise.reject(new Error('请输入纬度'));
-                    }
-                    if (value && (isNaN(value) || value < -90 || value > 90)) {
-                      return Promise.reject(new Error('请输入有效的纬度(-90.0 到 90.0)'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
+                { pattern: /^(-?([0-8]?\d(\.\d+)?|90(\.0+)?))$/, message: '请输入有效的纬度(-90.0 到 90.0)' }
               ]}
               style={{ flex: 1 }}
             >
@@ -225,17 +218,7 @@ const CityList = () => {
               label="经度"
               rules={[
                 { required: inputType === 'coordinates', message: '请输入经度' },
-                {
-                  validator: (_, value) => {
-                    if (!value && inputType === 'coordinates') {
-                      return Promise.reject(new Error('请输入经度'));
-                    }
-                    if (value && (isNaN(value) || value < -180 || value > 180)) {
-                      return Promise.reject(new Error('请输入有效的经度(-180.0 到 180.0)'));
-                    }
-                    return Promise.resolve();
-                  }
-                }
+                { pattern: /^(-?((1[0-7]\d|\d{1,2})(\.\d+)?|180(\.0+)?))$/, message: '请输入有效的经度(-180.0 到 180.0)' }
               ]}
               style={{ flex: 1 }}
             >

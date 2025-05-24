@@ -28,5 +28,11 @@
     "email": "3230102750@zju.edu.cn",
     "password": "111",
     "disabled": false
+  },
+  "hhh": {
+    "username": "hhh",
+    "email": "741359051@qq.com",
+    "password": "123",
+    "disabled": false
   }
 }
