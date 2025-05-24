@@ -16,10 +16,10 @@ start "UserManagementAPI" cmd /k "python main.py"
 
 REM Start AI Recommendation API (Assuming it runs on port 8001 or similar)
 echo Starting AI Recommendation API...
-cd /d "%PROJECT_BASE_PATH%AI-APIdemo"
+cd /d "%PROJECT_BASE_PATH%AI_API"
 REM TODO: Adjust the command below if apiTest.py needs a specific way to run (e.g., uvicorn, flask run)
 REM If apiTest.py is a FastAPI app, it might be: uvicorn apiTest:app --port 8001
-start "AIRecommendationAPI" cmd /k "python apiTest.py"
+start "AIRecommendationAPI" cmd /k "python AI_rmd.py"
 
 REM Start Frontend (React)
 echo Starting Frontend Development Server...
