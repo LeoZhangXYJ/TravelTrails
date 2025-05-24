@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
-import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4, Cartographic } from 'cesium';
+import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4, Cartographic, VerticalOrigin } from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
 import PhotoOverlay from '../PhotoOverlay';
 import '../../cesiumConfig';
+import { FaPlane, FaTrain, FaCar, FaShip, FaWalking, FaBus, FaBicycle, FaHome } from 'react-icons/fa';
+import { MdOutlineQuestionMark } from "react-icons/md";
+import { renderToStaticMarkup } from 'react-dom/server';
 
 // Hilfsfunktion zur Bestimmung des Linienmaterials basierend auf dem Transportmittel
 const getPolylineMaterial = (transportMode) => {
@@ -47,25 +50,40 @@ const getPolylineMaterial = (transportMode) => {
 
 // 获取交通工具图标的函数
 const getTransportIcon = (transportMode) => {
-  // 使用 Unicode 字符作为图标，因为它们在所有系统上都可用
+  let IconComponent;
   switch (transportMode) {
     case 'plane':
-      return '✈️';
+      IconComponent = FaPlane;
+      break;
     case 'train':
-      return '🚂';
+      IconComponent = FaTrain;
+      break;
     case 'car':
-      return '🚗';
+      IconComponent = FaCar;
+      break;
     case 'bus':
-      return '🚌';
+      IconComponent = FaBus;
+      break;
     case 'boat':
-      return '🚢';
+      IconComponent = FaShip;
+      break;
     case 'bicycle':
-      return '🚴';
+      IconComponent = FaBicycle;
+      break;
     case 'walk':
-      return '🚶';
+      IconComponent = FaWalking;
+      break;
+    case 'home':
+      IconComponent = FaHome;
+      break;
     default:
-      return '🚀';
+      IconComponent = MdOutlineQuestionMark;
   }
+  
+  // 将 React 组件转换为 SVG 字符串，并设置颜色为红色
+  const svgString = renderToStaticMarkup(<IconComponent size={24} color="#ff0000" />);
+  // 将 SVG 字符串转换为 data URL
+  return `data:image/svg+xml;base64,${btoa(svgString)}`;
 };
 
 const TARGET_CITY_HEIGHT = 20000; // 20km
@@ -417,28 +435,13 @@ const CesiumMap = () => {
     const movingEntity = {
       id: 'moving-transport-icon',
       position: startPosition, // 初始位置
-      point: {
-        pixelSize: 30,
-        color: Color.RED,
-        outlineColor: Color.WHITE,
-        outlineWidth: 3,
+      billboard: {
+        image: getTransportIcon(transportMode),
+        verticalOrigin: VerticalOrigin.BOTTOM,
+        scale: 2.0,
+        color: Color.WHITE,
         heightReference: HeightReference.NONE,
         disableDepthTestDistance: Number.POSITIVE_INFINITY
-      },
-      label: {
-        text: getTransportIcon(transportMode),
-        font: '48pt sans-serif',
-        pixelOffset: new Cartesian2(0, -40),
-        fillColor: Color.RED,
-        outlineColor: Color.WHITE,
-        outlineWidth: 3,
-        style: 1, // FILL_AND_OUTLINE
-        heightReference: HeightReference.NONE,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        scale: 2.0,
-        translucencyByDistance: undefined,
-        scaleByDistance: undefined,
-        show: true
       }
     };
 
@@ -464,8 +467,7 @@ const CesiumMap = () => {
       const addedEntity = viewer.entities.add({
         id: iconData.entity.id,
         position: iconData.entity.position,
-        point: iconData.entity.point,
-        label: iconData.entity.label
+        billboard: iconData.entity.billboard
       });
       
       console.log('新图标已添加:', addedEntity.id);
@@ -539,8 +541,7 @@ const CesiumMap = () => {
           viewer.entities.add({
             id: 'moving-transport-icon',
             position: currentPosition,
-            point: iconData.entity.point,
-            label: iconData.entity.label
+            billboard: iconData.entity.billboard
           });
         }
         
@@ -713,15 +714,13 @@ const CesiumMap = () => {
                 city.coordinates.lon,
                 city.coordinates.lat
               )}
-              point={{
-                pixelSize: isHighlighted ? 24 : 18,
+              billboard={{
+                image: getTransportIcon(city.transportMode || 'home'),
+                verticalOrigin: VerticalOrigin.BOTTOM,
+                scale: isHighlighted ? 1.5 : 1.0,
                 color: isHighlighted 
                   ? Color.fromCssColorString('#ff4500').withAlpha(1.0)
-                  : Color.fromCssColorString('#1e90ff').withAlpha(1.0),
-                outlineColor: isHighlighted
-                  ? Color.YELLOW
-                  : Color.WHITE,
-                outlineWidth: isHighlighted ? 4 : 3,
+                  : Color.fromCssColorString('#ff0000').withAlpha(1.0), // 修改为红色
                 heightReference: HeightReference.CLAMP_TO_GROUND,
                 scaleByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4),
                 translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
