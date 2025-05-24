@@ -6,22 +6,30 @@ export const useTravelContext = () => useContext(TravelContext);
 
 export const TravelProvider = ({ children }) => {
   const [cities, setCities] = useState(() => {
-    const savedCities = localStorage.getItem('cities');
+    const username = localStorage.getItem('username');
+    const savedCities = username ? localStorage.getItem(`cities_${username}`) : null;
     return savedCities ? JSON.parse(savedCities) : [];
   });
   const [currentCityIndex, setCurrentCityIndex] = useState(-1);
   const [isTouring, setIsTouring] = useState(false);
   const [tourIndex, setTourIndex] = useState(0);
   const [blogContent, setBlogContent] = useState(() => {
-    return localStorage.getItem('blogContent') || '';
+    const username = localStorage.getItem('username');
+    return username ? localStorage.getItem(`blogContent_${username}`) || '' : '';
   });
 
   useEffect(() => {
-    localStorage.setItem('cities', JSON.stringify(cities));
+    const username = localStorage.getItem('username');
+    if (username) {
+      localStorage.setItem(`cities_${username}`, JSON.stringify(cities));
+    }
   }, [cities]);
 
   useEffect(() => {
-    localStorage.setItem('blogContent', blogContent);
+    const username = localStorage.getItem('username');
+    if (username) {
+      localStorage.setItem(`blogContent_${username}`, blogContent);
+    }
   }, [blogContent]);
 
   const addCity = (cityData) => {
