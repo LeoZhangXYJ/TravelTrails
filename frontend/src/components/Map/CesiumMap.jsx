@@ -110,7 +110,8 @@ const CesiumMap = ({ currentLayer }) => {
     stopTour,
     selectCityById,
     getSortedCitiesForTour,
-    getOriginalIndexFromSortedCity
+    getOriginalIndexFromSortedCity,
+    setCurrentCityIndex
   } = useTravelContext();
   
   const viewerRef = useRef(null);
@@ -502,6 +503,14 @@ const CesiumMap = ({ currentLayer }) => {
         const stayTimeout = setTimeout(() => {
           if (!isTouring) return;
           if (tourIndex === sortedCities.length - 2) { 
+            // 终点城市
+            const lastCity = sortedCities[sortedCities.length - 1];
+            if (lastCity) {
+              const originalIndex = cities.findIndex(c => c.id === lastCity.id);
+              if (originalIndex !== -1 && originalIndex !== currentCityIndex) {
+                setCurrentCityIndex(originalIndex);
+              }
+            }
             stopTour();
           } else {
             setTourIndex(nextTravelActualIndex);
@@ -790,6 +799,19 @@ const CesiumMap = ({ currentLayer }) => {
       }, 400);
     }
   };
+
+  useEffect(() => {
+    if (isTouring) {
+      const sortedCities = getSortedCitiesForTour();
+      const currentTourCity = sortedCities[tourIndex];
+      if (currentTourCity) {
+        const originalIndex = cities.findIndex(c => c.id === currentTourCity.id);
+        if (originalIndex !== -1 && originalIndex !== currentCityIndex) {
+          setCurrentCityIndex(originalIndex);
+        }
+      }
+    }
+  }, [isTouring, tourIndex, cities, setCurrentCityIndex, getSortedCitiesForTour, currentCityIndex]);
 
   return (
     <div id="cesiumContainer" style={{ width: '100%', height: '100%' }}>
