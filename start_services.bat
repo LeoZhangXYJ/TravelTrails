@@ -9,17 +9,12 @@ SET PROJECT_BASE_PATH=%SCRIPT_DIR%
 
 echo Starting services...
 
-REM Start User Management Backend (FastAPI)
-echo Starting User Management Backend...
-cd /d "%PROJECT_BASE_PATH%user_management"
-start "UserManagementAPI" cmd /k "python main.py"
-
-REM Start AI Recommendation API (Assuming it runs on port 8001 or similar)
-echo Starting AI Recommendation API...
-cd /d "%PROJECT_BASE_PATH%AI-APIdemo"
-REM TODO: Adjust the command below if apiTest.py needs a specific way to run (e.g., uvicorn, flask run)
-REM If apiTest.py is a FastAPI app, it might be: uvicorn apiTest:app --port 8001
-start "AIRecommendationAPI" cmd /k "python apiTest.py"
+REM Start Backend Service (FastAPI - includes User Management and AI Recommendation)
+echo Starting Backend Service...
+cd /d "%PROJECT_BASE_PATH%"
+REM Ensure you have uvicorn and other dependencies installed, e.g., from backend/requirements.txt
+REM Frontend is expecting backend on port 8000.
+start "BackendAPI" cmd /k "uvicorn backend.main:app --reload --port 8000 --host 0.0.0.0"
 
 REM Start Frontend (React)
 echo Starting Frontend Development Server...
