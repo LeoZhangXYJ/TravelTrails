@@ -30,6 +30,13 @@ const Navbar = () => {
             </button>
             <button 
               className="nav-btn"
+              onClick={() => navigate('/blog')}
+            >
+              <i className="fas fa-book"></i>
+              <span>旅行博客</span>
+            </button>
+            <button 
+              className="nav-btn"
               onClick={() => navigate('/ai-recommendations')}
             >
               <i className="fas fa-robot"></i>

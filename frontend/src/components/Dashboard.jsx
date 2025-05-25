@@ -71,8 +71,7 @@ const Dashboard = () => {
             />
             
             <div className="sidebar-section">
-              <h3>旅行博客</h3>
-              <BlogEditor />
+              {/* 旅行博客功能已移至导航栏，这里彻底移除 */}
             </div>
           </div>
         </aside>

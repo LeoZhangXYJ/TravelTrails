@@ -3,213 +3,203 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { useTravelContext } from '../context/TravelContext';
 
-const Container = styled.div`
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+const Bg = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+  padding-top: 90px; /* 防止被导航栏遮挡 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
-const Header = styled.div`
+const Banner = styled.div`
+  color: #5a67d8;
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  margin-bottom: 2.5rem;
   display: flex;
   align-items: center;
-  margin-bottom: 30px;
+  gap: 14px;
 `;
 
-const BackButton = styled.button`
+const BackBtn = styled.button`
   background: none;
   border: none;
-  color: #666;
-  font-size: 1.2rem;
+  color: #667eea;
+  font-size: 1.7rem;
   cursor: pointer;
-  padding: 8px;
-  margin-right: 15px;
-  transition: color 0.3s;
-
-  &:hover {
-    color: #333;
-  }
+  margin-bottom: 1.5rem;
+  align-self: flex-start;
+  transition: color 0.2s;
+  &:hover { color: #5a67d8; }
 `;
 
-const Title = styled.h1`
-  margin: 0;
-  font-size: 1.8rem;
-  color: #333;
-`;
-
-const Content = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-`;
-
-const BlogForm = styled.form`
+const Form = styled.form`
+  width: 100%;
+  max-width: 520px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 2.2rem;
 `;
 
 const Label = styled.label`
   font-weight: 500;
-  color: #333;
+  color: #7b8190;
+  font-size: 1rem;
+  margin-bottom: 7px;
+  letter-spacing: 0.5px;
 `;
 
 const Input = styled.input`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-
-  &:focus {
-    outline: none;
-    border-color: #667eea;
-  }
+  padding: 16px 18px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 1.2rem;
+  font-size: 1.13rem;
+  background: #f8fafc;
+  transition: border 0.2s, box-shadow 0.2s;
+  width: 100%;
+  &::placeholder { color: #b6bac8; opacity: 1; }
+  &:focus { border-color: #667eea; outline: none; box-shadow: 0 0 0 2px #e0e7ff; }
 `;
 
-const TextArea = styled.textarea`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  min-height: 200px;
+const Select = styled.select`
+  padding: 16px 18px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 1.2rem;
+  font-size: 1.13rem;
+  background: #f8fafc;
+  transition: border 0.2s, box-shadow 0.2s;
+  width: 100%;
+  &::placeholder { color: #b6bac8; opacity: 1; }
+  &:focus { border-color: #667eea; outline: none; box-shadow: 0 0 0 2px #e0e7ff; }
+`;
+
+const Textarea = styled.textarea`
+  padding: 16px 18px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 1.2rem;
+  font-size: 1.13rem;
+  min-height: 140px;
   resize: vertical;
-
-  &:focus {
-    outline: none;
-    border-color: #667eea;
-  }
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+  background: #f8fafc;
+  transition: border 0.2s, box-shadow 0.2s;
+  width: 100%;
+  &::placeholder { color: #b6bac8; opacity: 1; }
+  &:focus { border-color: #667eea; outline: none; box-shadow: 0 0 0 2px #e0e7ff; }
 `;
 
 const Button = styled.button`
-  padding: 10px 20px;
+  background: linear-gradient(90deg, #667eea 0%, #5a67d8 100%);
+  color: #fff;
   border: none;
-  border-radius: 4px;
-  font-size: 1rem;
+  border-radius: 1.2rem;
+  padding: 18px 0;
+  font-size: 1.18rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.3s;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const SubmitButton = styled(Button)`
-  background: #667eea;
-  color: white;
-
-  &:hover:not(:disabled) {
-    background: #5a67d8;
-  }
-`;
-
-const CancelButton = styled(Button)`
-  background: #e2e8f0;
-  color: #4a5568;
-
+  margin-top: 8px;
+  box-shadow: 0 2px 12px rgba(60,80,180,0.10);
+  transition: background 0.2s, transform 0.15s;
+  letter-spacing: 1px;
+  width: 100%;
   &:hover {
-    background: #cbd5e0;
+    background: linear-gradient(90deg, #5a67d8 0%, #667eea 100%);
+    transform: translateY(-2px) scale(1.04);
   }
 `;
 
 const Blog = () => {
   const navigate = useNavigate();
-  const { cities } = useTravelContext();
-  const [blogData, setBlogData] = useState({
+  const { cities = [] } = useTravelContext();
+  const [form, setForm] = useState({
     title: '',
-    content: '',
     city: '',
+    content: ''
   });
+  const [blogs, setBlogs] = useState([]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // TODO: 实现博客保存功能
-    console.log('Blog data:', blogData);
+  const handleChange = e => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setBlogData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleSubmit = e => {
+    e.preventDefault();
+    setBlogs(prev => [
+      { ...form, date: new Date().toLocaleString() },
+      ...prev
+    ]);
+    setForm({ title: '', city: '', content: '' });
   };
 
   return (
-    <Container>
-      <Header>
-        <BackButton onClick={() => navigate('/dashboard')}>
-          <i className="fas fa-arrow-left"></i>
-        </BackButton>
-        <Title>旅行博客</Title>
-      </Header>
-
-      <Content>
-        <BlogForm onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label>标题</Label>
-            <Input
-              type="text"
-              name="title"
-              value={blogData.title}
-              onChange={handleChange}
-              placeholder="输入博客标题"
-              required
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>选择城市</Label>
-            <Input
-              as="select"
-              name="city"
-              value={blogData.city}
-              onChange={handleChange}
-              required
-            >
-              <option value="">选择城市</option>
-              {cities.map((city, index) => (
-                <option key={index} value={city.name}>
-                  {city.name}, {city.country}
-                </option>
-              ))}
-            </Input>
-          </FormGroup>
-
-          <FormGroup>
-            <Label>内容</Label>
-            <TextArea
-              name="content"
-              value={blogData.content}
-              onChange={handleChange}
-              placeholder="分享你的旅行故事..."
-              required
-            />
-          </FormGroup>
-
-          <ButtonGroup>
-            <CancelButton type="button" onClick={() => navigate('/dashboard')}>
-              取消
-            </CancelButton>
-            <SubmitButton type="submit">
-              发布
-            </SubmitButton>
-          </ButtonGroup>
-        </BlogForm>
-      </Content>
-    </Container>
+    <Bg>
+      <BackBtn onClick={() => navigate('/dashboard')} title="返回">← 返回</BackBtn>
+      <Banner>
+        <span role="img" aria-label="book">📖</span> 旅行博客
+      </Banner>
+      <Form onSubmit={handleSubmit}>
+        <div>
+          <Label>标题</Label>
+          <Input
+            name="title"
+            value={form.title}
+            onChange={handleChange}
+            placeholder="请输入博客标题"
+            required
+          />
+        </div>
+        <div>
+          <Label>关联城市</Label>
+          <Select
+            name="city"
+            value={form.city}
+            onChange={handleChange}
+            required
+          >
+            <option value="">请选择城市</option>
+            {cities.map((city, idx) => (
+              <option key={city.id || idx} value={city.name}>
+                {city.name} {city.country ? `- ${city.country}` : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label>内容</Label>
+          <Textarea
+            name="content"
+            value={form.content}
+            onChange={handleChange}
+            placeholder="写下你的旅行故事..."
+            required
+          />
+        </div>
+        <Button type="submit">发布</Button>
+      </Form>
+      {blogs.length > 0 && (
+        <div style={{ width: '100%', maxWidth: 520, margin: '48px auto 0', padding: '0 2px' }}>
+          <h2 style={{ color: '#5a67d8', fontWeight: 700, fontSize: '1.4rem', marginBottom: 24 }}>📝 已发布博客</h2>
+          {blogs.map((blog, idx) => (
+            <div key={idx} style={{
+              background: '#fff',
+              borderRadius: '1.2rem',
+              boxShadow: '0 2px 12px rgba(60,80,180,0.08)',
+              padding: '1.5rem 1.5rem 1.2rem 1.5rem',
+              marginBottom: 24
+            }}>
+              <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#2d3748', marginBottom: 6 }}>{blog.title}</div>
+              <div style={{ color: '#7b8190', fontSize: '0.98rem', marginBottom: 8 }}>
+                {blog.city && <span>🏙️ {blog.city} &nbsp; </span>}
+                <span style={{ fontSize: '0.92rem', color: '#b6bac8' }}>{blog.date}</span>
+              </div>
+              <div style={{ color: '#444', fontSize: '1.08rem', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{blog.content}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Bg>
   );
 };
 
