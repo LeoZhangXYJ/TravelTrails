@@ -416,9 +416,14 @@ const AIRecommendations = () => {
   ];
 
   const fetchRecommendationsFunction = async () => {
-    console.log("fetchRecommendationsFunction CALLED"); // 日志1：函数是否被调用
+    console.log("fetchRecommendationsFunction CALLED");
     setLoading(true);
     setError(null);
+    
+    // 创建一个超时控制器
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120秒超时
+    
     try {
       // 过滤和验证城市数据，确保只发送有效的数据
       const validCities = cities.filter(c => 
@@ -436,27 +441,33 @@ const AIRecommendations = () => {
         throw new Error('没有有效的城市数据来生成推荐');
       }
       
+      // 修复：前端使用'name'属性，但后端期望'city'属性
       const visitedCitiesForAPI = validCities.map(c => ({ 
-        city: c.name.trim(), 
+        city: c.name.trim(),  // 前端city对象使用'name'属性
         country: c.country.trim() 
       }));
       
-      console.log("Sending to API:", visitedCitiesForAPI); // 日志2：发送到API的数据
+      console.log("Sending to API:", visitedCitiesForAPI);
       console.log("Each city detail:", visitedCitiesForAPI.map((c, i) => `${i}: city="${c.city}" (${typeof c.city}), country="${c.country}" (${typeof c.country})`));
 
       const requestBody = { visitedCities: visitedCitiesForAPI };
       console.log("Full request body:", JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch('http://localhost:8001/test-api', {
+      const response = await fetch('http://localhost:8000/ai/recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
+        signal: controller.signal, // 添加abort信号
       });
-      console.log("API Response Status:", response.status); // 日志3：API响应状态
+      
+      // 清除超时定时器
+      clearTimeout(timeoutId);
+      
+      console.log("API Response Status:", response.status);
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({ detail: "API returned non-JSON error" }));
-        console.error("API Error Data:", errData); // 日志4：API错误详情
+        console.error("API Error Data:", errData);
         
         // 特别处理422验证错误
         if (response.status === 422 && errData.detail && Array.isArray(errData.detail)) {
@@ -469,16 +480,24 @@ const AIRecommendations = () => {
       }
 
       const data = await response.json();
-      console.log("Data from API:", data); // 日志5：从API获取的数据
+      console.log("Data from API:", data);
       setRecommendations(data || []);
     } catch (err) {
-      console.error("Failed to fetch AI recommendations:", err); // 日志6：捕获到的错误
-      setError(err.message);
+      // 清除超时定时器
+      clearTimeout(timeoutId);
+      
+      console.error("Failed to fetch AI recommendations:", err);
+      
+      if (err.name === 'AbortError') {
+        setError('请求超时，AI推荐需要较长时间处理，请稍后重试');
+      } else {
+        setError(err.message);
+      }
       setRecommendations([]);
     } finally {
       setLoading(false);
-      setInitialFetchDone(true); // 标记首次获取已尝试
-      console.log("Fetching finished. Loading:", false, "Error:", error); // 日志7：获取结束状态
+      setInitialFetchDone(true);
+      console.log("Fetching finished. Loading:", false, "Error:", error);
     }
   };
 

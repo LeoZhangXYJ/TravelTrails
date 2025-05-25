@@ -1,0 +1,50 @@
+{
+  "LeoZhang": {
+    "username": "LeoZhang",
+    "email": "leozhangxyj@zju.edu.cn",
+    "password": "$2b$12$pY/9qeJPrLMjayHpxq2wWenJEKXR6OwwJsxKPmcbGdbwIHF/R65dm", 
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
+  },
+  "LeoZhang10": {
+    "username": "LeoZhang10",
+    "email": "1391089202@qq.com",
+    "password": "Leozhang666",
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
+  },
+  "EpiohanyZZ": {
+    "username": "EpiohanyZZ",
+    "email": "leo_zhang_10@foxmail.com",
+    "password": "Leozhang666",
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
+  },
+  "test": {
+    "username": "test",
+    "email": "test@example.com",
+    "password": "123456",
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
+  },
+  "解哲康": {
+    "username": "解哲康",
+    "email": "3230102750@zju.edu.cn",
+    "password": "111",
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
+  },
+  "hhh": {
+    "username": "hhh",
+    "email": "741359051@qq.com",
+    "password": "123",
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
+  }
+} 

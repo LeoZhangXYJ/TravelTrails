@@ -137,6 +137,10 @@ const AI = () => {
 
   useEffect(() => {
     const fetchAIRecommendations = async () => {
+      // 创建超时控制器
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120秒超时
+      
       try {
         console.log('Sending cities data:', cities);
         
@@ -150,14 +154,18 @@ const AI = () => {
         const requestBody = { visitedCities: formattedCities };
         console.log('Request body:', JSON.stringify(requestBody));
         
-        const response = await fetch('http://localhost:8001/test-api', {
+        const response = await fetch('http://localhost:8000/ai/recommendations', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
           body: JSON.stringify(requestBody),
+          signal: controller.signal, // 添加abort信号
         });
+
+        // 清除超时定时器
+        clearTimeout(timeoutId);
 
         console.log('Response status:', response.status);
         console.log('Response headers:', Object.fromEntries(response.headers.entries()));
@@ -172,8 +180,16 @@ const AI = () => {
         setRecommendations(data);
         setError(null);
       } catch (error) {
+        // 清除超时定时器
+        clearTimeout(timeoutId);
+        
         console.error('Error details:', error);
-        setError(error.message || '获取推荐失败，请稍后重试');
+        
+        if (error.name === 'AbortError') {
+          setError('请求超时，AI推荐需要较长时间处理，请稍后重试');
+        } else {
+          setError(error.message || '获取推荐失败，请稍后重试');
+        }
       } finally {
         setIsLoading(false);
       }

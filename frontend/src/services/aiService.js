@@ -7,14 +7,14 @@ export const getRecommendations = async (visitedCities) => {
     // 确保数据格式正确
     const requestData = {
       visitedCities: visitedCities.map(city => ({
-        city: city.city || city.name,
+        city: city.city || city.name,  // 支持两种格式：直接city字段或前端的name字段
         country: city.country || '未知'
       }))
     };
 
     console.log('Sending request data:', JSON.stringify(requestData, null, 2));
 
-    const response = await axios.post(`${API_URL}/travel/ai/recommendations`, requestData, {
+    const response = await axios.post(`${API_URL}/ai/recommendations`, requestData, {
       headers: {
         'Content-Type': 'application/json'
       }
