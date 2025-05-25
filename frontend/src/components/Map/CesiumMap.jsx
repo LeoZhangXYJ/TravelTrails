@@ -1,6 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
-import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4, Cartographic, VerticalOrigin } from 'cesium';
+import { 
+  Cartesian3, Color, Math as CesiumMath, HeightReference, 
+  NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, 
+  ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, 
+  TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, 
+  Cartesian2, Matrix4, Cartographic, VerticalOrigin, 
+  UrlTemplateImageryProvider, WebMercatorTilingScheme,
+  IonImageryProvider, CesiumTerrainProvider, EllipsoidTerrainProvider, IonResource
+} from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
 import PhotoOverlay from '../PhotoOverlay';
 import '../../cesiumConfig';
@@ -92,7 +100,7 @@ const TARGET_CITY_PITCH = CesiumMath.toRadians(-90); // 正对地面
 const GLOBE_VIEW_HEIGHT_INITIAL_ZOOM_OUT = 3e6; // 3000km für initialen Zoom Out auf "Home"
 const GLOBE_VIEW_HEIGHT_TRANSITION = 3e6; // 3000km für Übergangs-Zoom Out zwischen Städten
 
-const CesiumMap = () => {
+const CesiumMap = ({ currentLayer }) => {
   const { 
     cities, 
     currentCityIndex, 
@@ -121,6 +129,103 @@ const CesiumMap = () => {
   const [currentPhotoCity, setCurrentPhotoCity] = useState(null);
   const [waitingForPhotos, setWaitingForPhotos] = useState(false);
 
+  // 底图切换函数
+  const switchLayer = async (layer) => {
+    if (!viewerRef.current || !viewerRef.current.cesiumElement) {
+      console.error("Viewer 未初始化.");
+      return;
+    }
+    
+    const viewer = viewerRef.current.cesiumElement;
+    const layers = viewer.imageryLayers;
+    
+    // 天地图 token
+    const token = '7c94b499835c3a98af5a1be5f6db2540';
+    const tdtUrl = 'https://t{s}.tianditu.gov.cn/';
+    const subdomains = ['0', '1', '2', '3', '4', '5', '6', '7'];
+    
+    // 移除所有现有图层
+    layers.removeAll();
+    
+    // 根据选择的图层类型添加相应的图层
+    switch (layer) {
+      case 'BingMapsRoad':
+        // Bing 道路地图
+        const layer_1 = layers.addImageryProvider(
+          await IonImageryProvider.fromAssetId(4)
+        );
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      case 'onlylabel':
+        // Bing 标签地图
+        const labelLayer = layers.addImageryProvider(
+          await IonImageryProvider.fromAssetId(2411391)
+        );
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      case 'nightEarth':
+        // 夜间灯光图
+        const layer_2 = layers.addImageryProvider(
+          await IonImageryProvider.fromAssetId(3812)
+        );
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      case 'tianditu':
+        // 天地图
+        // 加入影像
+        const img = new UrlTemplateImageryProvider({
+          url: tdtUrl + 'DataServer?T=img_w&x={x}&y={y}&l={z}&tk=' + token,
+          subdomains: subdomains,
+          tilingScheme: new WebMercatorTilingScheme(),
+          maximumLevel: 18
+        });
+        layers.addImageryProvider(img);
+        
+        // 加入国界线
+        const boundary = new UrlTemplateImageryProvider({
+          url: tdtUrl + 'DataServer?T=ibo_w&x={x}&y={y}&l={z}&tk=' + token,
+          subdomains: subdomains,
+          tilingScheme: new WebMercatorTilingScheme(),
+          maximumLevel: 10
+        });
+        layers.addImageryProvider(boundary);
+        
+        // 使用 Cesium 世界地形
+        try {
+          const cesiumWorldTerrain = await CesiumTerrainProvider.fromUrl(
+            IonResource.fromAssetId(1)
+          );
+          viewer.terrainProvider = cesiumWorldTerrain;
+        } catch (error) {
+          console.error("加载 Cesium 世界地形失败:", error);
+          viewer.terrainProvider = new EllipsoidTerrainProvider();
+        }
+        break;
+        
+      case 'gaode':
+        // 高德地图
+        const gaodeMap = new UrlTemplateImageryProvider({
+          url: "https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+        });
+        layers.addImageryProvider(gaodeMap);
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      default:
+        console.warn(`未知的图层类型: ${layer}`);
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+    }
+  };
+
   // 初始化Cesium Viewer
   useEffect(() => {
     if (!viewerRef.current || !viewerRef.current.cesiumElement) return;
@@ -144,6 +249,21 @@ const CesiumMap = () => {
     // viewer.scene.screenSpaceCameraController.enableTilt = false;
     // viewer.scene.screenSpaceCameraController.enableLook = false;
   }, []);
+
+  // 监听 currentLayer 变化
+  useEffect(() => {
+    if (currentLayer && viewerRef.current && viewerRef.current.cesiumElement) {
+      switchLayer(currentLayer);
+    }
+  }, [currentLayer]);
+
+  // 初始化 viewer 后设置默认底图
+  useEffect(() => {
+    if (viewerRef.current && viewerRef.current.cesiumElement) {
+      // 设置默认底图
+      switchLayer('BingMapsRoad');
+    }
+  }, [viewerRef.current]);
 
   // 处理选中城市变化时的视角飞行
   useEffect(() => {

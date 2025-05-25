@@ -7,6 +7,7 @@ import CityForm from './SidePanel/CityForm';
 import TourControls from './SidePanel/TourControls';
 import PhotoGallery from './SidePanel/PhotoGallery';
 import BlogEditor from './SidePanel/BlogEditor';
+import LayerSwitcher from './SidePanel/LayerSwitcher';
 import PhotoOverlay from './PhotoOverlay';
 import { useTravelContext } from '../context/TravelContext';
 import './Dashboard.css';
@@ -17,6 +18,7 @@ const SIDEBAR_COLLAPSED_WIDTH = 80;  // Example width, adjust as needed
 const Dashboard = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showPhotoOverlay, setShowPhotoOverlay] = useState(false);
+  const [currentLayer, setCurrentLayer] = useState('BingMapsRoad');
   const navigate = useNavigate();
   const { cities, currentCityIndex } = useTravelContext();
 
@@ -34,6 +36,11 @@ const Dashboard = () => {
       setShowPhotoOverlay(true);
     }
   }, [currentCityIndex]);
+
+  // 处理底图切换
+  const handleSwitchLayer = (layerId) => {
+    setCurrentLayer(layerId);
+  };
 
   return (
     <div className="dashboard">
@@ -58,6 +65,11 @@ const Dashboard = () => {
               <PhotoGallery onShowPhotos={() => setShowPhotoOverlay(true)} />
             </div>
             
+            <LayerSwitcher 
+              onSwitchLayer={handleSwitchLayer}
+              currentLayer={currentLayer}
+            />
+            
             <div className="sidebar-section">
               <h3>旅行博客</h3>
               <BlogEditor />
@@ -67,7 +79,7 @@ const Dashboard = () => {
 
         {/* 地图区域 */}
         <main className="dashboard-main">
-          <CesiumMap />
+          <CesiumMap currentLayer={currentLayer} onSwitchLayer={handleSwitchLayer} />
         </main>
       </div>
 
