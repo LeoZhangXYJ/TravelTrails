@@ -71,9 +71,9 @@ const CityList = () => {
         if (!determinedCityName) {
             determinedCityName = isFirstCity ? "家" : "自定义位置";
         }
-        // 如果是自定义位置且国家为空，则设置默认国家
-        if (determinedCityName === "自定义位置" && !determinedCountry) {
-            determinedCountry = "未知区域";
+        // 如果是经纬度输入且国家为空，则设置默认国家为"自定义"
+        if (!determinedCountry) {
+            determinedCountry = "自定义";
         }
       } else {
         // Validierung sollte dies bereits abfangen
@@ -201,6 +201,11 @@ const CityList = () => {
           >
             <Input placeholder={cityNamePlaceholder} />
           </Form.Item>
+          
+          <Form.Item name="countryName" label="国家名称 (可选, 不填写将显示为'自定义')">
+            <Input placeholder="例如：中国" />
+          </Form.Item>
+          
           <Space align="baseline" style={{ display: 'flex' }}>
             <Form.Item
               name="latitude"

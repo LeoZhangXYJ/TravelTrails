@@ -1,11 +1,13 @@
 .auth-container {
-  min-height: 100vh;
+  min-height: 100vh; /* 保持全屏高度 */
   display: flex;
   justify-content: center;
   align-items: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   position: relative;
   overflow: hidden;
+  padding-top: 4rem; /* 为导航栏留出空间 */
+  box-sizing: border-box; /* 确保padding包含在总高度内 */
 }
 
 .auth-card {

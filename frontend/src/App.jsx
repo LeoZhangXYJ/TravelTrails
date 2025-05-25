@@ -19,13 +19,17 @@ const PrivateRoute = ({ children }) => {
 // 条件渲染导航栏的组件
 const ConditionalNavbar = () => {
   const location = useLocation();
-  const hideNavbarPaths = ['/login', '/register'];
+  const hideNavbarPaths = []; // 不再隐藏任何页面的导航栏
+  const authOnlyPaths = ['/login', '/register']; // 登录和注册页面只显示logo
   
   if (hideNavbarPaths.includes(location.pathname)) {
     return null;
   }
   
-  return <Navbar />;
+  // 在登录和注册页面只显示logo部分
+  const showOnlyLogo = authOnlyPaths.includes(location.pathname);
+  
+  return <Navbar showOnlyLogo={showOnlyLogo} />;
 };
 
 const App = () => {

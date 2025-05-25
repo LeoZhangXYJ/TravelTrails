@@ -227,7 +227,7 @@ const Statistics = () => {
     },
     tooltip: {
       formatter: (datum) => {
-        return { name: '里程', value: datum.distance + ' km' };
+        return { name: '里程', value: (datum.distance || 0) + ' km' };
       },
     }
   };
@@ -312,7 +312,7 @@ const Statistics = () => {
 
         {cities && cities.length > 0 && (
           <TimelineContainer>
-            <TimelineTitle>旅行足迹 (按添加顺序)</TimelineTitle>
+            <TimelineTitle>旅行足迹</TimelineTitle>
             <TimelineList>
               {cities.map((city, index) => (
                 <TimelineItem key={city.id || index}>
