@@ -4,11 +4,131 @@ const TravelContext = createContext();
 
 export const useTravelContext = () => useContext(TravelContext);
 
+// 存储工具函数
+const storageUtils = {
+  // 安全地保存到localStorage，处理存储限制
+  safeSetItem: (key, value) => {
+    try {
+      const serialized = JSON.stringify(value);
+      
+      // 检查数据大小（大约估算）
+      const sizeInBytes = new Blob([serialized]).size;
+      const sizeInMB = sizeInBytes / (1024 * 1024);
+      
+      console.log(`尝试存储 ${key}，大小: ${sizeInMB.toFixed(2)}MB`);
+      
+      // 如果数据太大（超过4MB），尝试压缩存储
+      if (sizeInMB > 4) {
+        console.warn(`数据过大 (${sizeInMB.toFixed(2)}MB)，尝试优化存储...`);
+        
+        // 创建不包含照片的轻量版本
+        const lightVersion = storageUtils.createLightVersion(value);
+        const lightSerialized = JSON.stringify(lightVersion);
+        const lightSize = new Blob([lightSerialized]).size / (1024 * 1024);
+        
+        console.log(`优化后大小: ${lightSize.toFixed(2)}MB`);
+        
+        if (lightSize > 4) {
+          throw new Error('即使优化后数据仍然过大');
+        }
+        
+        localStorage.setItem(key, lightSerialized);
+        localStorage.setItem(`${key}_photos_removed`, 'true');
+        
+        // 显示用户友好的提示
+        console.warn('由于存储空间限制，照片数据已被临时移除。请考虑减少照片数量或使用外部存储。');
+        return;
+      }
+      
+      localStorage.setItem(key, serialized);
+      localStorage.removeItem(`${key}_photos_removed`);
+      
+    } catch (error) {
+      console.error('localStorage存储失败:', error);
+      
+      if (error.name === 'QuotaExceededError') {
+        // 存储空间不足，尝试清理和重试
+        storageUtils.handleQuotaExceeded(key, value);
+      } else {
+        // 其他错误，显示用户友好的消息
+        alert('保存数据时出现错误，请刷新页面重试。如果问题持续存在，请清理浏览器缓存。');
+      }
+    }
+  },
+
+  // 处理存储空间不足的情况
+  handleQuotaExceeded: (key, value) => {
+    try {
+      console.log('存储空间不足，尝试清理...');
+      
+      // 1. 清理其他用户的数据（保留当前用户）
+      const currentUsername = localStorage.getItem('username');
+      const keysToRemove = [];
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const storageKey = localStorage.key(i);
+        if (storageKey && storageKey.includes('cities_') && !storageKey.includes(currentUsername)) {
+          keysToRemove.push(storageKey);
+        }
+      }
+      
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+      console.log(`清理了 ${keysToRemove.length} 个其他用户的数据`);
+      
+      // 2. 尝试保存轻量版本
+      const lightVersion = storageUtils.createLightVersion(value);
+      localStorage.setItem(key, JSON.stringify(lightVersion));
+      localStorage.setItem(`${key}_photos_removed`, 'true');
+      
+      // 提示用户
+      alert('存储空间不足，已自动清理旧数据并优化存储。部分照片可能需要重新添加。');
+      
+    } catch (retryError) {
+      console.error('清理后仍然无法存储:', retryError);
+      alert('存储空间严重不足，请清理浏览器缓存或减少数据量。');
+    }
+  },
+
+  // 创建不包含照片的轻量版本
+  createLightVersion: (cities) => {
+    if (!Array.isArray(cities)) return cities;
+    
+    return cities.map(city => ({
+      ...city,
+      photos: city.photos ? city.photos.map(photo => ({
+        ...photo,
+        url: photo.url && photo.url.startsWith('data:') ? '[照片已移除]' : photo.url
+      })) : []
+    }));
+  },
+
+  // 安全地从localStorage获取数据
+  safeGetItem: (key) => {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return null;
+      
+      const parsed = JSON.parse(item);
+      
+      // 检查是否有照片被移除的标记
+      const photosRemoved = localStorage.getItem(`${key}_photos_removed`);
+      if (photosRemoved === 'true') {
+        console.warn('检测到照片数据曾被移除，建议重新添加照片');
+      }
+      
+      return parsed;
+    } catch (error) {
+      console.error('localStorage读取失败:', error);
+      return null;
+    }
+  }
+};
+
 export const TravelProvider = ({ children }) => {
   const [cities, setCities] = useState(() => {
     const username = localStorage.getItem('username');
-    const savedCities = username ? localStorage.getItem(`cities_${username}`) : null;
-    return savedCities ? JSON.parse(savedCities) : [];
+    const savedCities = username ? storageUtils.safeGetItem(`cities_${username}`) : null;
+    return savedCities || [];
   });
   const [currentCityIndex, setCurrentCityIndex] = useState(-1);
   const [isTouring, setIsTouring] = useState(false);
@@ -18,17 +138,27 @@ export const TravelProvider = ({ children }) => {
     return username ? localStorage.getItem(`blogContent_${username}`) || '' : '';
   });
 
+  // 优化的存储效果 - 使用防抖和错误处理
   useEffect(() => {
     const username = localStorage.getItem('username');
-    if (username) {
-      localStorage.setItem(`cities_${username}`, JSON.stringify(cities));
+    if (username && cities.length >= 0) {
+      // 使用防抖延迟存储，避免频繁写入
+      const timeoutId = setTimeout(() => {
+        storageUtils.safeSetItem(`cities_${username}`, cities);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [cities]);
 
   useEffect(() => {
     const username = localStorage.getItem('username');
     if (username) {
-      localStorage.setItem(`blogContent_${username}`, blogContent);
+      try {
+        localStorage.setItem(`blogContent_${username}`, blogContent);
+      } catch (error) {
+        console.error('博客内容存储失败:', error);
+      }
     }
   }, [blogContent]);
 
@@ -218,6 +348,45 @@ export const TravelProvider = ({ children }) => {
     return cities.findIndex(city => city.id === sortedCity.id);
   };
 
+  // 清理存储空间的函数
+  const clearStorageSpace = () => {
+    try {
+      const username = localStorage.getItem('username');
+      if (!username) return;
+
+      // 显示确认对话框
+      const confirmed = window.confirm(
+        '这将清理浏览器存储空间，可能会移除一些照片数据。是否继续？'
+      );
+      
+      if (!confirmed) return;
+
+      // 1. 清理其他用户的数据
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes('cities_') && !key.includes(username)) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // 2. 优化当前用户的数据
+      const lightVersion = storageUtils.createLightVersion(cities);
+      storageUtils.safeSetItem(`cities_${username}`, lightVersion);
+      
+      alert(`已清理 ${keysToRemove.length} 个旧数据项，并优化了当前数据存储。`);
+      
+      // 刷新页面以重新加载优化后的数据
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('清理存储空间失败:', error);
+      alert('清理失败，请手动清理浏览器缓存。');
+    }
+  };
+
   const stats = {
     totalCities: cities.length,
   };
@@ -253,7 +422,8 @@ export const TravelProvider = ({ children }) => {
     checkDateConflict,
     getDisabledDates,
     getSortedCitiesForTour,
-    getOriginalIndexFromSortedCity
+    getOriginalIndexFromSortedCity,
+    clearStorageSpace
   };
 
   return (

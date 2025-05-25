@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/auth';
-import CesiumMap from './Map/CesiumMap';
-import CityList from './SidePanel/CityList';
-import CityForm from './SidePanel/CityForm';
-import TourControls from './SidePanel/TourControls';
-import PhotoGallery from './SidePanel/PhotoGallery';
-import BlogEditor from './SidePanel/BlogEditor';
-import PhotoOverlay from './PhotoOverlay';
+import CesiumMap from '../components/Map/CesiumMap';
+import CityList from '../components/SidePanel/CityList';
+import CityForm from '../components/SidePanel/CityForm';
+import TourControls from '../components/SidePanel/TourControls';
+import PhotoGallery from '../components/SidePanel/PhotoGallery';
+import BlogEditor from '../components/SidePanel/BlogEditor';
+import PhotoOverlay from '../components/UI/PhotoOverlay';
 import { useTravelContext } from '../context/TravelContext';
-import './Dashboard.css';
-
-const SIDEBAR_EXPANDED_WIDTH = 380; // Example width, adjust as needed
-const SIDEBAR_COLLAPSED_WIDTH = 80;  // Example width, adjust as needed
+import { SIDEBAR_EXPANDED_WIDTH, SIDEBAR_COLLAPSED_WIDTH } from '../utils/constants';
+import '../styles/Dashboard.css';
 
 const Dashboard = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

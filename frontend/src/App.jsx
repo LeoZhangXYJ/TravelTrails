@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
-import Dashboard from './components/Dashboard';
+import Dashboard from './pages/Dashboard';
 import Statistics from './pages/Statistics';
 import PhotoShowcase from './pages/PhotoShowcase';
 import AIRecommendationsPage from './pages/AIRecommendations';
@@ -34,54 +34,48 @@ const ConditionalNavbar = () => {
 
 const App = () => {
   return (
-    <Router>
-      <ConditionalNavbar />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <TravelProvider>
+    <TravelProvider>
+      <Router>
+        <ConditionalNavbar />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
                 <Dashboard />
-              </TravelProvider>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/statistics"
-          element={
-            <PrivateRoute>
-              <TravelProvider>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/statistics"
+            element={
+              <PrivateRoute>
                 <Statistics />
-              </TravelProvider>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/photos"
-          element={
-            <PrivateRoute>
-              <TravelProvider>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/photos"
+            element={
+              <PrivateRoute>
                 <PhotoShowcase />
-              </TravelProvider>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/ai-recommendations"
-          element={
-            <PrivateRoute>
-              <TravelProvider>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/ai-recommendations"
+            element={
+              <PrivateRoute>
                 <AIRecommendationsPage />
-              </TravelProvider>
-            </PrivateRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/login" />} />
-      </Routes>
-    </Router>
+              </PrivateRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/login" />} />
+        </Routes>
+      </Router>
+    </TravelProvider>
   );
 };
 

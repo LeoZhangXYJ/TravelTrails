@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
 import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4, Cartographic } from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
-import PhotoOverlay from '../PhotoOverlay';
+import PhotoOverlay from '../UI/PhotoOverlay';
 import '../../cesiumConfig';
 
 // Hilfsfunktion zur Bestimmung des Linienmaterials basierend auf dem Transportmittel
