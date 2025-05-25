@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import { useTravelContext } from '../context/TravelContext';
@@ -118,6 +118,26 @@ const Blog = () => {
     content: ''
   });
   const [blogs, setBlogs] = useState([]);
+  const [currentBlogIndex, setCurrentBlogIndex] = useState(0);
+  const loadedRef = useRef(false); // 标记是否已加载过localStorage
+
+  // 加载本地存储的博客
+  useEffect(() => {
+    if (!loadedRef.current) {
+      const saved = localStorage.getItem('blogs');
+      if (saved) {
+        setBlogs(JSON.parse(saved));
+      }
+      loadedRef.current = true;
+    }
+  }, []);
+
+  // 每次blogs变化时写入localStorage
+  useEffect(() => {
+    if (loadedRef.current) {
+      localStorage.setItem('blogs', JSON.stringify(blogs));
+    }
+  }, [blogs]);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -126,10 +146,14 @@ const Blog = () => {
 
   const handleSubmit = e => {
     e.preventDefault();
-    setBlogs(prev => [
-      { ...form, date: new Date().toLocaleString() },
-      ...prev
-    ]);
+    setBlogs(prev => {
+      const newBlogs = [
+        { ...form, date: new Date().toLocaleString() },
+        ...prev
+      ];
+      setCurrentBlogIndex(0); // 新发布后自动切换到最新
+      return newBlogs;
+    });
     setForm({ title: '', city: '', content: '' });
   };
 
@@ -179,24 +203,57 @@ const Blog = () => {
         <Button type="submit">发布</Button>
       </Form>
       {blogs.length > 0 && (
-        <div style={{ width: '100%', maxWidth: 520, margin: '48px auto 0', padding: '0 2px' }}>
+        <div style={{ width: '100%', maxWidth: 520, margin: '48px auto 0', padding: '0 2px', textAlign: 'center' }}>
           <h2 style={{ color: '#5a67d8', fontWeight: 700, fontSize: '1.4rem', marginBottom: 24 }}>📝 已发布博客</h2>
-          {blogs.map((blog, idx) => (
-            <div key={idx} style={{
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+            <button
+              onClick={() => setCurrentBlogIndex(i => Math.max(i - 1, 0))}
+              disabled={currentBlogIndex === 0}
+              style={{
+                border: 'none', background: 'none', fontSize: 28, color: currentBlogIndex === 0 ? '#b6bac8' : '#667eea', cursor: currentBlogIndex === 0 ? 'not-allowed' : 'pointer', transition: 'color 0.2s', padding: 0
+              }}
+              aria-label="上一条"
+            >
+              &#8592;
+            </button>
+            <div style={{
+              minWidth: 340,
+              maxWidth: 520,
+              width: '100%',
               background: '#fff',
               borderRadius: '1.2rem',
               boxShadow: '0 2px 12px rgba(60,80,180,0.08)',
               padding: '1.5rem 1.5rem 1.2rem 1.5rem',
-              marginBottom: 24
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              margin: '0 8px',
+              transition: 'box-shadow 0.2s',
+              wordBreak: 'break-all',
+              whiteSpace: 'pre-wrap',
+              lineHeight: 1.7
             }}>
-              <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#2d3748', marginBottom: 6 }}>{blog.title}</div>
+              <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#2d3748', marginBottom: 6 }}>{blogs[currentBlogIndex].title}</div>
               <div style={{ color: '#7b8190', fontSize: '0.98rem', marginBottom: 8 }}>
-                {blog.city && <span>🏙️ {blog.city} &nbsp; </span>}
-                <span style={{ fontSize: '0.92rem', color: '#b6bac8' }}>{blog.date}</span>
+                {blogs[currentBlogIndex].city && <span>🏙️ {blogs[currentBlogIndex].city} &nbsp; </span>}
+                <span style={{ fontSize: '0.92rem', color: '#b6bac8' }}>{blogs[currentBlogIndex].date}</span>
               </div>
-              <div style={{ color: '#444', fontSize: '1.08rem', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{blog.content}</div>
+              <div style={{ color: '#444', fontSize: '1.08rem' }}>{blogs[currentBlogIndex].content}</div>
             </div>
-          ))}
+            <button
+              onClick={() => setCurrentBlogIndex(i => Math.min(i + 1, blogs.length - 1))}
+              disabled={currentBlogIndex === blogs.length - 1}
+              style={{
+                border: 'none', background: 'none', fontSize: 28, color: currentBlogIndex === blogs.length - 1 ? '#b6bac8' : '#667eea', cursor: currentBlogIndex === blogs.length - 1 ? 'not-allowed' : 'pointer', transition: 'color 0.2s', padding: 0
+              }}
+              aria-label="下一条"
+            >
+              &#8594;
+            </button>
+          </div>
+          <div style={{ marginTop: 12, color: '#7b8190', fontSize: '0.98rem' }}>
+            {currentBlogIndex + 1} / {blogs.length}
+          </div>
         </div>
       )}
     </Bg>
