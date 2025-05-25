@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useTravelContext } from '../../context/TravelContext';
 import { DatePicker, Input, Select, Button, Form, Space, Alert, Radio } from 'antd';
+import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 // import './SidePanel.css'; // Entfernt, da die Datei nicht existiert und CSS global sein sollte
+
+dayjs.extend(isBetween);
+dayjs.extend(isSameOrBefore);
+dayjs.extend(isSameOrAfter);
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -46,6 +54,16 @@ const CityList = () => {
             transportMode: 'plane', // Standard-Transportmittel für nachfolgende Städte
             // dateRange könnte hier auch initialisiert werden, falls gewünscht
         });
+    }
+    // 当添加新城市时，设置默认的开始日期
+    if (cities.length > 0 && !isFirstCity) {
+      const lastCity = cities[cities.length - 1];
+      if (lastCity.endDate) {
+        const nextDay = dayjs(lastCity.endDate).add(1, 'day');
+        form.setFieldsValue({
+          dateRange: [nextDay, nextDay]
+        });
+      }
     }
   }, [cities, form, isFirstCity]);
 
@@ -265,20 +283,52 @@ const CityList = () => {
           style={{ width: '100%' }}
           disabled={isFirstCity}
           disabledDate={(current) => {
-            // 禁用未来日期，只能选择今天及以前
-            if (current && current.isAfter(new Date(), 'day')) {
+            if (!current) return false;
+            
+            // 获取所有已添加的城市
+            const sortedCities = cities
+              .filter(city => city.startDate && city.endDate)
+              .sort((a, b) => dayjs(a.startDate).valueOf() - dayjs(b.startDate).valueOf());
+
+            // 找到当前城市的前一个城市
+            const currentCityIndex = cities.findIndex(city => 
+              city.startDate === form.getFieldValue('dateRange')?.[0]?.toISOString()
+            );
+            const previousCity = currentCityIndex > 0 ? cities[currentCityIndex - 1] : null;
+
+            // 如果存在前一个城市，禁用其结束日期之前的所有日期
+            if (previousCity && previousCity.endDate) {
+              const previousEndDate = dayjs(previousCity.endDate).subtract(1, 'day');
+              if (current.isSameOrBefore(previousEndDate, 'day')) {
+                return true;
+              }
+            }
+
+            // 禁用所有已完成旅行的开始日期之前的所有日期
+            const hasCompletedTrips = sortedCities.some(city => {
+              const startDate = dayjs(city.startDate);
+              return current.isBefore(startDate, 'day');
+            });
+            if (hasCompletedTrips) {
               return true;
             }
 
             // 禁用已被其他城市占用的日期
-            if (!isFirstCity) {
-              const disabledDates = getDisabledDates();
-              return disabledDates.some(disabledDate =>
-                current.isSame(disabledDate, 'day')
-              );
+            return sortedCities.some(city => {
+              const startDate = dayjs(city.startDate);
+              const endDate = dayjs(city.endDate);
+              return current.isBetween(startDate, endDate, 'day', '[]');
+            });
+          }}
+          onChange={(dates) => {
+            if (dates && dates[0]) {
+              // 当选择开始日期时，自动设置结束日期为开始日期
+              if (!dates[1]) {
+                form.setFieldsValue({
+                  dateRange: [dates[0], dates[0]]
+                });
+              }
             }
-
-            return false;
           }}
           placeholder={['开始日期', '结束日期']}
         />
