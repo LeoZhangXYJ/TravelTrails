@@ -1,7 +1,25 @@
+# Web 框架和服务器
 fastapi==0.104.1
 uvicorn==0.24.0
-python-multipart==0.0.6
-sqlalchemy==2.0.23
-python-dotenv==1.0.0
+
+# 数据验证和序列化
+pydantic[email]==2.5.0
 email-validator==2.1.0
-pydantic[email]==2.5.0 
+
+# 数据库支持（可选）
+sqlalchemy==2.0.23
+
+# 文件处理
+python-multipart==0.0.6
+python-dotenv==1.0.0
+
+# 安全相关
+python-jose[cryptography]==3.3.0  # JWT 支持
+passlib[bcrypt]==1.7.4           # 密码哈希
+bcrypt==4.0.1                    # 密码加密
+
+# API 限流
+slowapi==0.1.8
+
+# 工具包
+python-dateutil==2.8.2
