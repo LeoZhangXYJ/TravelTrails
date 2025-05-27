@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, Form
+from fastapi import FastAPI, HTTPException, status, Form, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -8,6 +8,9 @@ import uvicorn
 import uuid
 import base64
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # 加载环境变量
 load_dotenv()
@@ -76,7 +79,21 @@ def root():
 
 @app.post("/auth/register", response_model=UserBase)
 async def register(user: UserCreate):
-    """用户注册"""
+    """
+    用户注册接口
+    
+    Parameters:
+    - username: 用户名，3-20个字符
+    - email: 有效的电子邮箱地址
+    - password: 密码，至少8个字符，包含大小写字母和数字
+    
+    Returns:
+    - username: 注册成功的用户名
+    - email: 注册邮箱
+    
+    Raises:
+    - HTTP_400_BAD_REQUEST: 用户名已存在或邮箱已被使用
+    """
     users = load_users()
     if user.username in users:
         raise HTTPException(
@@ -103,8 +120,13 @@ async def register(user: UserCreate):
     save_users(users)
     return UserBase(username=user.username, email=user.email)
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 @app.post("/auth/login")
-async def login(username: str = Form(...), password: str = Form(...)):
+@limiter.limit("5/minute")
+async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     """用户登录"""
     users = load_users()
     if username not in users:
