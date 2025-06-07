@@ -6,7 +6,6 @@ import CityList from '../components/SidePanel/CityList';
 import CityForm from '../components/SidePanel/CityForm';
 import TourControls from '../components/SidePanel/TourControls';
 import PhotoGallery from '../components/SidePanel/PhotoGallery';
-import BlogEditor from '../components/SidePanel/BlogEditor';
 import PhotoOverlay from '../components/UI/PhotoOverlay';
 import { useTravelContext } from '../context/TravelContext';
 import { SIDEBAR_EXPANDED_WIDTH, SIDEBAR_COLLAPSED_WIDTH } from '../utils/constants';
@@ -47,19 +46,16 @@ const Dashboard = () => {
             </div>
             
             <div className="sidebar-section">
-              <h3>旅行控制</h3>
+              <h3></h3>
               <TourControls />
             </div>
             
             <div className="sidebar-section">
-              <h3>照片墙</h3>
+              <h3></h3>
               <PhotoGallery onShowPhotos={() => setShowPhotoOverlay(true)} />
             </div>
             
-            <div className="sidebar-section">
-              <h3>旅行博客</h3>
-              <BlogEditor />
-            </div>
+           
           </div>
         </aside>
 

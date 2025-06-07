@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../../services/auth';
 import { useTravelContext } from '../../context/TravelContext';
 import '../../styles/Dashboard.css';
+import { FaMapMarkedAlt, FaChartBar, FaImages, FaBook, FaRobot } from 'react-icons/fa';
+import { NavLink } from 'react-router-dom';
+import './Navbar.css';
 
 const Navbar = ({ showOnlyLogo = false }) => {
   const navigate = useNavigate();
@@ -44,6 +47,13 @@ const Navbar = ({ showOnlyLogo = false }) => {
                 <i className="fas fa-robot"></i>
                 <span>AI 推荐</span>
               </button>
+              <button 
+              className="nav-btn"
+              onClick={() => navigate('/blog')}
+            >
+              <i className="fas fa-book"></i>
+              <span>旅行博客</span>
+            </button>
               <button 
                 className="nav-btn"
                 onClick={handleClearStorage}

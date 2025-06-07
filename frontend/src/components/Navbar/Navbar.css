@@ -67,6 +67,20 @@
   background-color: #c0392b;
 }
 
+.nav-icon {
+  color: #fff !important;
+  vertical-align: middle;
+  margin-right: 6px;
+  font-size: 1.15em;
+  transition: color 0.2s;
+}
+
+.navbar a.active .nav-icon,
+.navbar a:hover .nav-icon {
+  color: #fff !important;
+  filter: brightness(1.15);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .navbar {

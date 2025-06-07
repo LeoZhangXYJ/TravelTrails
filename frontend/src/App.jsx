@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Statistics from './pages/Statistics';
 import PhotoShowcase from './pages/PhotoShowcase';
 import AIRecommendationsPage from './pages/AIRecommendations';
+import Blog from './pages/Blog';
 import Navbar from './components/Navbar/Navbar';
 import { authAPI } from './services/auth';
 import { TravelProvider } from './context/TravelContext';
@@ -69,6 +70,14 @@ const App = () => {
             element={
               <PrivateRoute>
                 <AIRecommendationsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/blog"
+            element={
+              <PrivateRoute>
+                <Blog />
               </PrivateRoute>
             }
           />

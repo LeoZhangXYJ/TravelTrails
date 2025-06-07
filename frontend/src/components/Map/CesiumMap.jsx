@@ -1,9 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
-import { Cartesian3, Color, Math as CesiumMath, HeightReference, NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, Cartesian2, Matrix4, Cartographic } from 'cesium';
+import { 
+  Cartesian3, Color, Math as CesiumMath, HeightReference, 
+  NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, 
+  ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, 
+  TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, 
+  Cartesian2, Matrix4, Cartographic, VerticalOrigin, 
+  UrlTemplateImageryProvider, WebMercatorTilingScheme,
+  IonImageryProvider, CesiumTerrainProvider, EllipsoidTerrainProvider, IonResource
+} from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
-import PhotoOverlay from '../UI/PhotoOverlay';
+import PhotoOverlay from '../SidePanel/PhotoOverlay';
 import '../../cesiumConfig';
+import { FaPlane, FaTrain, FaCar, FaShip, FaWalking, FaBus, FaBicycle, FaHome } from 'react-icons/fa';
+import { MdOutlineQuestionMark } from "react-icons/md";
+import { renderToStaticMarkup } from 'react-dom/server';
 
 // Hilfsfunktion zur Bestimmung des Linienmaterials basierend auf dem Transportmittel
 const getPolylineMaterial = (transportMode) => {
@@ -47,25 +58,54 @@ const getPolylineMaterial = (transportMode) => {
 
 // 获取交通工具图标的函数
 const getTransportIcon = (transportMode) => {
-  // 使用 Unicode 字符作为图标，因为它们在所有系统上都可用
+  let IconComponent;
   switch (transportMode) {
     case 'plane':
-      return '✈️';
+      IconComponent = FaPlane;
+      break;
     case 'train':
-      return '🚂';
+      IconComponent = FaTrain;
+      break;
     case 'car':
-      return '🚗';
+      IconComponent = FaCar;
+      break;
     case 'bus':
-      return '🚌';
+      IconComponent = FaBus;
+      break;
     case 'boat':
-      return '🚢';
+      IconComponent = FaShip;
+      break;
     case 'bicycle':
-      return '🚴';
+      IconComponent = FaBicycle;
+      break;
     case 'walk':
-      return '🚶';
+      IconComponent = FaWalking;
+      break;
+    case 'home':
+      IconComponent = FaHome;
+      break;
     default:
-      return '🚀';
+      IconComponent = MdOutlineQuestionMark;
   }
+  
+  // 将 React 组件转换为 SVG 字符串，并设置颜色为红色
+  const svgString = renderToStaticMarkup(<IconComponent size={24} color="#ff0000" />);
+  // 将 SVG 字符串转换为 data URL
+  return `data:image/svg+xml;base64,${btoa(svgString)}`;
+};
+
+// 获取交通工具图标的样式
+const getTransportIconStyle = (isHighlighted = false) => {
+  return {
+    scale: isHighlighted ? 1.5 : 1.0,
+    color: isHighlighted 
+      ? Color.fromCssColorString('#ff4500').withAlpha(1.0)
+      : Color.fromCssColorString('#ff0000').withAlpha(1.0),
+    verticalOrigin: VerticalOrigin.BOTTOM,
+    heightReference: HeightReference.CLAMP_TO_GROUND,
+    scaleByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4),
+    translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
+  };
 };
 
 const TARGET_CITY_HEIGHT = 20000; // 20km
@@ -74,7 +114,7 @@ const TARGET_CITY_PITCH = CesiumMath.toRadians(-90); // 正对地面
 const GLOBE_VIEW_HEIGHT_INITIAL_ZOOM_OUT = 3e6; // 3000km für initialen Zoom Out auf "Home"
 const GLOBE_VIEW_HEIGHT_TRANSITION = 3e6; // 3000km für Übergangs-Zoom Out zwischen Städten
 
-const CesiumMap = () => {
+const CesiumMap = ({ currentLayer }) => {
   const { 
     cities, 
     currentCityIndex, 
@@ -103,28 +143,93 @@ const CesiumMap = () => {
   const [currentPhotoCity, setCurrentPhotoCity] = useState(null);
   const [waitingForPhotos, setWaitingForPhotos] = useState(false);
 
-  // 初始化Cesium Viewer
+  // 添加显示所有交通工具图标和路线的函数
+  const displayTransportIconsAndRoutes = useCallback(() => {
+    if (!viewerRef.current?.cesiumElement) return;
+    
+    const viewer = viewerRef.current.cesiumElement;
+    const transportModes = ['plane', 'train', 'car', 'bus', 'boat', 'bicycle', 'walk'];
+    
+    // 清除现有的实体
+    viewer.entities.removeAll();
+    
+    // 在固定位置显示所有图标和示例路线
+    transportModes.forEach((mode, index) => {
+      const startLon = 116.3915 + (index * 0.5);
+      const startLat = 39.9053;
+      const endLon = startLon + 0.2;
+      const endLat = startLat + 0.2;
+      
+      // 添加图标
+      viewer.entities.add({
+        name: mode,
+        position: Cartesian3.fromDegrees(startLon, startLat),
+        billboard: {
+          image: getTransportIcon(mode),
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          scale: 1.0,
+          heightReference: HeightReference.CLAMP_TO_GROUND,
+          color: Color.WHITE,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          pixelOffset: new Cartesian2(0, -10)
+        }
+      });
+      
+      // 添加路线
+      viewer.entities.add({
+        name: `${mode}_route`,
+        polyline: {
+          positions: Cartesian3.fromDegreesArray([
+            startLon, startLat,
+            endLon, endLat
+          ]),
+          width: 2,
+          material: getPolylineMaterial(mode),
+          clampToGround: true
+        }
+      });
+    });
+
+    // 设置相机视角以查看所有图标
+    viewer.camera.flyTo({
+      destination: Cartesian3.fromDegrees(116.3915, 39.9053, 100000),
+      orientation: {
+        heading: 0.0,
+        pitch: -CesiumMath.PI_OVER_TWO,
+        roll: 0.0
+      },
+      duration: 0
+    });
+  }, []);
+
+  // 在组件挂载和图层切换时显示图标和路线
+  useEffect(() => {
+    if (viewerRef.current?.cesiumElement) {
+      displayTransportIconsAndRoutes();
+    }
+  }, [displayTransportIconsAndRoutes, currentLayer]);
+
+  // 修改初始化 viewer 的代码
   useEffect(() => {
     if (!viewerRef.current || !viewerRef.current.cesiumElement) return;
     
     const viewer = viewerRef.current.cesiumElement;
+    
     // 设置初始视角
     viewer.camera.setView({
-      destination: Cartesian3.fromDegrees(116.3915, 39.9053, 10000000),
+      destination: Cartesian3.fromDegrees(116.3915, 39.9053, 100000),
       orientation: {
         heading: 0.0,
         pitch: -CesiumMath.PI_OVER_TWO,
         roll: 0.0
       }
     });
-    
-    // 保持默认的导航控件启用，用户可以自由操作地图
-    // 注释掉禁用导航控件的代码
-    // viewer.scene.screenSpaceCameraController.enableRotate = false;
-    // viewer.scene.screenSpaceCameraController.enableTranslate = false;
-    // viewer.scene.screenSpaceCameraController.enableZoom = false;
-    // viewer.scene.screenSpaceCameraController.enableTilt = false;
-    // viewer.scene.screenSpaceCameraController.enableLook = false;
+
+    // 设置一些优化选项
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.globe.baseColor = Color.WHITE;
+    viewer.scene.globe.atmosphereBrightnessShift = 0.2;
+    viewer.scene.globe.atmosphereSaturationShift = 0.8;
   }, []);
 
   // 处理选中城市变化时的视角飞行
@@ -417,28 +522,15 @@ const CesiumMap = () => {
     const movingEntity = {
       id: 'moving-transport-icon',
       position: startPosition, // 初始位置
-      point: {
-        pixelSize: 30,
-        color: Color.RED,
-        outlineColor: Color.WHITE,
-        outlineWidth: 3,
-        heightReference: HeightReference.NONE,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
-      },
-      label: {
-        text: getTransportIcon(transportMode),
-        font: '48pt sans-serif',
-        pixelOffset: new Cartesian2(0, -40),
-        fillColor: Color.RED,
-        outlineColor: Color.WHITE,
-        outlineWidth: 3,
-        style: 1, // FILL_AND_OUTLINE
+      billboard: {
+        image: getTransportIcon(transportMode),
+        scale: 1.0, // 增大移动图标的尺寸
+        color: Color.WHITE,
+        verticalOrigin: VerticalOrigin.BOTTOM,
         heightReference: HeightReference.NONE,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        scale: 2.0,
-        translucencyByDistance: undefined,
-        scaleByDistance: undefined,
-        show: true
+        scaleByDistance: new NearFarScalar(1.5e6, 3.0, 10.0e6, 1.2), // 调整缩放范围
+        translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
       }
     };
 
@@ -464,8 +556,7 @@ const CesiumMap = () => {
       const addedEntity = viewer.entities.add({
         id: iconData.entity.id,
         position: iconData.entity.position,
-        point: iconData.entity.point,
-        label: iconData.entity.label
+        billboard: iconData.entity.billboard
       });
       
       console.log('新图标已添加:', addedEntity.id);
@@ -539,8 +630,7 @@ const CesiumMap = () => {
           viewer.entities.add({
             id: 'moving-transport-icon',
             position: currentPosition,
-            point: iconData.entity.point,
-            label: iconData.entity.label
+            billboard: iconData.entity.billboard
           });
         }
         
@@ -704,6 +794,8 @@ const CesiumMap = () => {
             isHighlighted = city.id === currentTourCity?.id;
           }
           
+          const iconStyle = getTransportIconStyle(isHighlighted);
+          
           return (
             <Entity
               key={`city-entity-${city.id || index}`}
@@ -713,18 +805,9 @@ const CesiumMap = () => {
                 city.coordinates.lon,
                 city.coordinates.lat
               )}
-              point={{
-                pixelSize: isHighlighted ? 24 : 18,
-                color: isHighlighted 
-                  ? Color.fromCssColorString('#ff4500').withAlpha(1.0)
-                  : Color.fromCssColorString('#1e90ff').withAlpha(1.0),
-                outlineColor: isHighlighted
-                  ? Color.YELLOW
-                  : Color.WHITE,
-                outlineWidth: isHighlighted ? 4 : 3,
-                heightReference: HeightReference.CLAMP_TO_GROUND,
-                scaleByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4),
-                translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
+              billboard={{
+                image: getTransportIcon(city.transportMode || 'home'),
+                ...iconStyle
               }}
             />
           );
