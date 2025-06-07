@@ -10,7 +10,7 @@ import {
   IonImageryProvider, CesiumTerrainProvider, EllipsoidTerrainProvider, IonResource
 } from 'cesium';
 import { useTravelContext } from '../../context/TravelContext';
-import PhotoOverlay from '../SidePanel/PhotoOverlay';
+import PhotoOverlay from '../UI/PhotoOverlay';
 import '../../cesiumConfig';
 import { FaPlane, FaTrain, FaCar, FaShip, FaWalking, FaBus, FaBicycle, FaHome } from 'react-icons/fa';
 import { MdOutlineQuestionMark } from "react-icons/md";
@@ -124,7 +124,8 @@ const CesiumMap = ({ currentLayer }) => {
     stopTour,
     selectCityById,
     getSortedCitiesForTour,
-    getOriginalIndexFromSortedCity
+    getOriginalIndexFromSortedCity,
+    setCurrentCityIndex
   } = useTravelContext();
   
   const viewerRef = useRef(null);
@@ -143,94 +144,141 @@ const CesiumMap = ({ currentLayer }) => {
   const [currentPhotoCity, setCurrentPhotoCity] = useState(null);
   const [waitingForPhotos, setWaitingForPhotos] = useState(false);
 
-  // 添加显示所有交通工具图标和路线的函数
-  const displayTransportIconsAndRoutes = useCallback(() => {
-    if (!viewerRef.current?.cesiumElement) return;
+  // 底图切换函数
+  const switchLayer = async (layer) => {
+    if (!viewerRef.current || !viewerRef.current.cesiumElement) {
+      console.error("Viewer 未初始化.");
+      return;
+    }
     
     const viewer = viewerRef.current.cesiumElement;
-    const transportModes = ['plane', 'train', 'car', 'bus', 'boat', 'bicycle', 'walk'];
+    const layers = viewer.imageryLayers;
     
-    // 清除现有的实体
-    viewer.entities.removeAll();
+    // 天地图 token
+    const token = '7c94b499835c3a98af5a1be5f6db2540';
+    const tdtUrl = 'https://t{s}.tianditu.gov.cn/';
+    const subdomains = ['0', '1', '2', '3', '4', '5', '6', '7'];
     
-    // 在固定位置显示所有图标和示例路线
-    transportModes.forEach((mode, index) => {
-      const startLon = 116.3915 + (index * 0.5);
-      const startLat = 39.9053;
-      const endLon = startLon + 0.2;
-      const endLat = startLat + 0.2;
-      
-      // 添加图标
-      viewer.entities.add({
-        name: mode,
-        position: Cartesian3.fromDegrees(startLon, startLat),
-        billboard: {
-          image: getTransportIcon(mode),
-          verticalOrigin: VerticalOrigin.BOTTOM,
-          scale: 1.0,
-          heightReference: HeightReference.CLAMP_TO_GROUND,
-          color: Color.WHITE,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          pixelOffset: new Cartesian2(0, -10)
+    // 移除所有现有图层
+    layers.removeAll();
+    
+    // 根据选择的图层类型添加相应的图层
+    switch (layer) {
+      case 'BingMapsRoad':
+        // Bing 道路地图
+        const layer_1 = layers.addImageryProvider(
+          await IonImageryProvider.fromAssetId(4)
+        );
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      case 'onlylabel':
+        // Bing 标签地图
+        const labelLayer = layers.addImageryProvider(
+          await IonImageryProvider.fromAssetId(2411391)
+        );
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      case 'nightEarth':
+        // 夜间灯光图
+        const layer_2 = layers.addImageryProvider(
+          await IonImageryProvider.fromAssetId(3812)
+        );
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      case 'tianditu':
+        // 天地图
+        // 加入影像
+        const img = new UrlTemplateImageryProvider({
+          url: tdtUrl + 'DataServer?T=img_w&x={x}&y={y}&l={z}&tk=' + token,
+          subdomains: subdomains,
+          tilingScheme: new WebMercatorTilingScheme(),
+          maximumLevel: 18
+        });
+        layers.addImageryProvider(img);
+        
+        // 加入国界线
+        const boundary = new UrlTemplateImageryProvider({
+          url: tdtUrl + 'DataServer?T=ibo_w&x={x}&y={y}&l={z}&tk=' + token,
+          subdomains: subdomains,
+          tilingScheme: new WebMercatorTilingScheme(),
+          maximumLevel: 10
+        });
+        layers.addImageryProvider(boundary);
+        
+        // 使用 Cesium 世界地形
+        try {
+          const cesiumWorldTerrain = await CesiumTerrainProvider.fromUrl(
+            IonResource.fromAssetId(1)
+          );
+          viewer.terrainProvider = cesiumWorldTerrain;
+        } catch (error) {
+          console.error("加载 Cesium 世界地形失败:", error);
+          viewer.terrainProvider = new EllipsoidTerrainProvider();
         }
-      });
-      
-      // 添加路线
-      viewer.entities.add({
-        name: `${mode}_route`,
-        polyline: {
-          positions: Cartesian3.fromDegreesArray([
-            startLon, startLat,
-            endLon, endLat
-          ]),
-          width: 2,
-          material: getPolylineMaterial(mode),
-          clampToGround: true
-        }
-      });
-    });
-
-    // 设置相机视角以查看所有图标
-    viewer.camera.flyTo({
-      destination: Cartesian3.fromDegrees(116.3915, 39.9053, 100000),
-      orientation: {
-        heading: 0.0,
-        pitch: -CesiumMath.PI_OVER_TWO,
-        roll: 0.0
-      },
-      duration: 0
-    });
-  }, []);
-
-  // 在组件挂载和图层切换时显示图标和路线
-  useEffect(() => {
-    if (viewerRef.current?.cesiumElement) {
-      displayTransportIconsAndRoutes();
+        break;
+        
+      case 'gaode':
+        // 高德地图
+        const gaodeMap = new UrlTemplateImageryProvider({
+          url: "https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+        });
+        layers.addImageryProvider(gaodeMap);
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
+        
+      default:
+        console.warn(`未知的图层类型: ${layer}`);
+        // 重置为默认地形
+        viewer.terrainProvider = new EllipsoidTerrainProvider();
+        break;
     }
-  }, [displayTransportIconsAndRoutes, currentLayer]);
+  };
 
-  // 修改初始化 viewer 的代码
+  // 监听 currentLayer 变化
+  useEffect(() => {
+    if (currentLayer && viewerRef.current && viewerRef.current.cesiumElement) {
+      switchLayer(currentLayer);
+    }
+  }, [currentLayer]);
+
+  // 初始化Cesium Viewer
   useEffect(() => {
     if (!viewerRef.current || !viewerRef.current.cesiumElement) return;
     
     const viewer = viewerRef.current.cesiumElement;
-    
     // 设置初始视角
     viewer.camera.setView({
-      destination: Cartesian3.fromDegrees(116.3915, 39.9053, 100000),
+      destination: Cartesian3.fromDegrees(116.3915, 39.9053, 10000000),
       orientation: {
         heading: 0.0,
         pitch: -CesiumMath.PI_OVER_TWO,
         roll: 0.0
       }
     });
-
-    // 设置一些优化选项
-    viewer.scene.globe.enableLighting = true;
-    viewer.scene.globe.baseColor = Color.WHITE;
-    viewer.scene.globe.atmosphereBrightnessShift = 0.2;
-    viewer.scene.globe.atmosphereSaturationShift = 0.8;
+    
+    // 保持默认的导航控件启用，用户可以自由操作地图
+    // 注释掉禁用导航控件的代码
+    // viewer.scene.screenSpaceCameraController.enableRotate = false;
+    // viewer.scene.screenSpaceCameraController.enableTranslate = false;
+    // viewer.scene.screenSpaceCameraController.enableZoom = false;
+    // viewer.scene.screenSpaceCameraController.enableTilt = false;
+    // viewer.scene.screenSpaceCameraController.enableLook = false;
   }, []);
+
+  // 初始化 viewer 后设置默认底图
+  useEffect(() => {
+    if (viewerRef.current && viewerRef.current.cesiumElement) {
+      // 设置默认底图
+      switchLayer('BingMapsRoad');
+    }
+  }, [viewerRef.current]);
 
   // 处理选中城市变化时的视角飞行
   useEffect(() => {
@@ -469,6 +517,14 @@ const CesiumMap = ({ currentLayer }) => {
         const stayTimeout = setTimeout(() => {
           if (!isTouring) return;
           if (tourIndex === sortedCities.length - 2) { 
+            // 终点城市
+            const lastCity = sortedCities[sortedCities.length - 1];
+            if (lastCity) {
+              const originalIndex = cities.findIndex(c => c.id === lastCity.id);
+              if (originalIndex !== -1 && originalIndex !== currentCityIndex) {
+                setCurrentCityIndex(originalIndex);
+              }
+            }
             stopTour();
           } else {
             setTourIndex(nextTravelActualIndex);
@@ -759,6 +815,19 @@ const CesiumMap = ({ currentLayer }) => {
       }, 400);
     }
   };
+
+  useEffect(() => {
+    if (isTouring) {
+      const sortedCities = getSortedCitiesForTour();
+      const currentTourCity = sortedCities[tourIndex];
+      if (currentTourCity) {
+        const originalIndex = cities.findIndex(c => c.id === currentTourCity.id);
+        if (originalIndex !== -1 && originalIndex !== currentCityIndex) {
+          setCurrentCityIndex(originalIndex);
+        }
+      }
+    }
+  }, [isTouring, tourIndex, cities, setCurrentCityIndex, getSortedCitiesForTour, currentCityIndex]);
 
   return (
     <div id="cesiumContainer" style={{ width: '100%', height: '100%' }}>

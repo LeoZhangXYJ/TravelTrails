@@ -2,7 +2,7 @@
   "LeoZhang": {
     "username": "LeoZhang",
     "email": "leozhangxyj@zju.edu.cn",
-    "password": "$2b$12$pY/9qeJPrLMjayHpxq2wWenJEKXR6OwwJsxKPmcbGdbwIHF/R65dm", 
+    "password": "$2b$12$pY/9qeJPrLMjayHpxq2wWenJEKXR6OwwJsxKPmcbGdbwIHF/R65dm",
     "disabled": false,
     "age": null,
     "travel_trails": []
@@ -46,5 +46,13 @@
     "disabled": false,
     "age": null,
     "travel_trails": []
+  },
+  "amigo张": {
+    "username": "amigo张",
+    "email": "258971117@qq.com",
+    "password": "111",
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
   }
-} 
+}

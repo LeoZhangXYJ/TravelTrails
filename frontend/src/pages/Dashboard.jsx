@@ -5,6 +5,7 @@ import CesiumMap from '../components/Map/CesiumMap';
 import CityList from '../components/SidePanel/CityList';
 import CityForm from '../components/SidePanel/CityForm';
 import TourControls from '../components/SidePanel/TourControls';
+import LayerSwitcher from '../components/SidePanel/LayerSwitcher';
 import PhotoGallery from '../components/SidePanel/PhotoGallery';
 import PhotoOverlay from '../components/UI/PhotoOverlay';
 import { useTravelContext } from '../context/TravelContext';
@@ -14,6 +15,7 @@ import '../styles/Dashboard.css';
 const Dashboard = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showPhotoOverlay, setShowPhotoOverlay] = useState(false);
+  const [currentLayer, setCurrentLayer] = useState('BingMapsRoad');
   const navigate = useNavigate();
   const { cities, currentCityIndex } = useTravelContext();
 
@@ -23,6 +25,10 @@ const Dashboard = () => {
   const handleLogout = () => {
     authAPI.logout();
     navigate('/login');
+  };
+  // 处理底图切换
+  const handleSwitchLayer = (layerId) => {
+    setCurrentLayer(layerId);
   };
 
   // 当城市改变时，自动显示照片
@@ -39,6 +45,15 @@ const Dashboard = () => {
         {/* 侧边栏 */}
         <aside className={`dashboard-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="sidebar-content">
+            <div className="sidebar-section">
+              <h3>底图设置</h3>
+              <LayerSwitcher 
+                onSwitchLayer={handleSwitchLayer} 
+                currentLayer={currentLayer} 
+              />
+            </div>
+
+            
             <div className="sidebar-section">
               <h3>城市管理</h3>
               <CityList />
@@ -61,7 +76,7 @@ const Dashboard = () => {
 
         {/* 地图区域 */}
         <main className="dashboard-main">
-          <CesiumMap />
+          <CesiumMap currentLayer={currentLayer} />
         </main>
       </div>
 
