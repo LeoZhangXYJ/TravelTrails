@@ -2,6 +2,15 @@
 
 一个现代化的旅行轨迹管理系统，支持城市记录、照片管理、博客编写和AI智能推荐。
 
+## Statement  
+This project is the final assignment for the "GIS Application Development" course at Zhejiang University.  
+The team members are from the College of Earth Sciences, majoring in Geographic Information Science:
+- Chen Yifan 
+- Fang Wen
+- Xie Zhekang
+- Zhang Junhao
+- Zhang Xiangyijie
+
 ## 🌟 功能特性
 
 - 🗺️ **3D地图展示**: 基于Cesium的3D地球展示旅行轨迹
