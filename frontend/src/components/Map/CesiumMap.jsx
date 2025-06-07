@@ -918,6 +918,7 @@ const CesiumMap = ({ currentLayer }) => {
                   ])}
                   width={nextCity.transportMode === 'plane' ? 4 : 3}
                   material={material}
+                  clampToGround={true}
                 />
               </Entity>
             );
