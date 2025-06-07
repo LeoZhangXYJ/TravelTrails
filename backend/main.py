@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # 从 presentation_layer 导入路由
 from .presentation_layer.routes import ai_router, user_router, auth_router
 from .presentation_layer.travel_router import router as travel_router
+from .presentation_layer.amap_router import router as amap_router
 from .config import CORS_ALLOWED_ORIGINS_STRING # 导入配置
 
 # TODO: 数据库初始化 (如果使用 SQLAlchemy，可以在启动时调用 init_db)
@@ -88,18 +89,19 @@ app.include_router(ai_router)
 app.include_router(auth_router) # 认证路由，例如 /auth/login, /auth/register
 app.include_router(user_router) # 用户信息路由，例如 /users/me
 app.include_router(travel_router, prefix="/users") # 挂载到 /users/{username}/cities 等
+app.include_router(amap_router) # 高德地图API路由
 
 @app.get("/", tags=["Root"])
 async def read_root():
     """API 根路径，返回欢迎信息。"""    
     return {"message": "欢迎使用 TravelTrails Backend API", "version": app.version}
 
-# uvicorn backend.main:app --reload --port 8008
+# uvicorn backend.main:app --reload --port 8000
 
 # 如果希望直接通过 python backend/main.py 启动 (需要 uvicorn 安装在环境中)
 # if __name__ == "__main__":
 #     import uvicorn
 #     import os
-#     port = int(os.getenv("PORT", 8008)) # 使用与 user_management 不同的端口以避免冲突
+#     port = int(os.getenv("PORT", 8000)) # 统一使用8000端口
 #     host = os.getenv("HOST", "127.0.0.1")
 #     uvicorn.run(app, host=host, port=port) 

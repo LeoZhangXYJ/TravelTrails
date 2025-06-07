@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import Slider from 'react-slick';
-import { FaArrowLeft, FaPlusCircle, FaSpinner, FaExclamationTriangle, FaPlane, FaTrain, FaCar, FaBus, FaShip, FaBicycle, FaWalking, FaCalendarAlt } from 'react-icons/fa';
+import { FaArrowLeft, FaPlusCircle, FaSpinner, FaExclamationTriangle, FaPlane, FaCar, FaBus, FaWalking, FaCalendarAlt } from 'react-icons/fa';
 import { MdOutlineQuestionMark } from "react-icons/md";
 import { useTravelContext } from '../context/TravelContext';
 
@@ -403,16 +403,13 @@ const AIRecommendations = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // 交通方式选项
+  // 交通方式选项（简化为5种主要方式）
   const transportOptions = [
     { value: 'plane', label: '飞机', icon: FaPlane },
-    { value: 'train', label: '火车', icon: FaTrain },
     { value: 'car', label: '汽车', icon: FaCar },
     { value: 'bus', label: '巴士', icon: FaBus },
-    { value: 'boat', label: '轮船', icon: FaShip },
-    { value: 'bicycle', label: '自行车', icon: FaBicycle },
+
     { value: 'walk', label: '步行', icon: FaWalking },
-    { value: 'other', label: '其他', icon: MdOutlineQuestionMark },
   ];
 
   const fetchRecommendationsFunction = async () => {

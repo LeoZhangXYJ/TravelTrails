@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTravelContext } from '../../context/TravelContext';
-import { FaPlane, FaTrain, FaCar, FaShip, FaWalking, FaBus, FaBicycle, FaCalendarAlt } from 'react-icons/fa';
-import { MdOutlineQuestionMark } from "react-icons/md";
+import { FaPlane, FaCar, FaWalking, FaBus, FaCalendarAlt } from 'react-icons/fa';
 
 const CityForm = () => {
   const { 
@@ -11,27 +10,20 @@ const CityForm = () => {
     deleteCity
   } = useTravelContext();
 
-  // 辅助函数，根据交通方式返回对应的图标
+  // 辅助函数，根据交通方式返回对应的图标（简化为5种主要方式）
   const getTransportIcon = (mode) => {
     switch (mode) {
       case 'plane':
         return <FaPlane title="飞机" />;
-      case 'train':
-        return <FaTrain title="火车" />;
       case 'car':
         return <FaCar title="汽车" />;
       case 'bus':
         return <FaBus title="巴士" />;
-      case 'boat':
-        return <FaShip title="轮船/渡轮" />;
-      case 'bicycle':
-        return <FaBicycle title="自行车" />;
+      
       case 'walk':
         return <FaWalking title="步行" />;
-      case 'other':
-        return <MdOutlineQuestionMark title="其他" />;
       default:
-        return null;
+        return <FaCar title="汽车" />; // 默认显示汽车图标
     }
   };
 

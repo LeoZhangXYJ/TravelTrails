@@ -244,15 +244,12 @@ const CityList = () => {
         ]}
       >
         <Select disabled={isFirstCity} placeholder={isFirstCity ? "起点无需交通方式" : "请选择交通方式"}>
-          {/* Die Option 'home' wird nicht mehr zur Auswahl angezeigt, aber intern verwendet */}
+          {/* 简化为5种主要交通方式 */}
           <Option value="plane">飞机</Option>
-          <Option value="train">火车</Option>
           <Option value="car">汽车</Option>
           <Option value="bus">巴士</Option>
-          <Option value="boat">轮船/渡轮</Option>
-          <Option value="bicycle">自行车</Option>
+          
           <Option value="walk">步行</Option>
-          <Option value="other">其他</Option>
         </Select>
       </Form.Item>
 

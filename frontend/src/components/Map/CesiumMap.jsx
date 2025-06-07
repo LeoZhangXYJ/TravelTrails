@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Viewer, Entity, PolylineGraphics, BillboardGraphics } from 'resium';
 import { 
   Cartesian3, Color, Math as CesiumMath, HeightReference, 
-  NearFarScalar, ScreenSpaceEventType, defined, PolylineDashMaterialProperty, 
+  NearFarScalar, ScreenSpaceEventType, defined, 
   ScreenSpaceEventHandler, SampledPositionProperty, TimeIntervalCollection, 
   TimeInterval, JulianDate, ClockRange, ClockStep, BoundingSphere, 
   Cartesian2, Matrix4, Cartographic, VerticalOrigin, 
@@ -12,59 +12,34 @@ import {
 import { useTravelContext } from '../../context/TravelContext';
 import PhotoOverlay from '../SidePanel/PhotoOverlay';
 import '../../cesiumConfig';
-import { FaPlane, FaTrain, FaCar, FaShip, FaWalking, FaBus, FaBicycle, FaHome } from 'react-icons/fa';
+import { FaPlane, FaCar, FaWalking, FaBus, FaHome } from 'react-icons/fa';
 import { MdOutlineQuestionMark } from "react-icons/md";
 import { renderToStaticMarkup } from 'react-dom/server';
+import { getRealRoute, getBatchRealRoutes } from '../../services/amapService';
+import { transformRouteData, debugCoordinateTransform } from '../../utils/coordinateTransform';
 
-// Hilfsfunktion zur Bestimmung des Linienmaterials basierend auf dem Transportmittel
+// 交通工具线条材质（简化为5种主要交通方式）
 const getPolylineMaterial = (transportMode) => {
   switch (transportMode) {
     case 'plane':
-      return new PolylineDashMaterialProperty({
-        color: Color.DEEPSKYBLUE,
-        dashLength: 16.0,
-        dashPattern: 255 // Einfaches Muster für gestrichelte Linie (0x00FF)
-      });
-    case 'train':
-      return Color.DARKSLATEGRAY.withAlpha(0.9);
+      return Color.PURPLE.withAlpha(0.9); // 飞机：紫色实线
     case 'car':
-      return Color.FORESTGREEN.withAlpha(0.9);
+      return Color.RED.withAlpha(0.9); // 汽车：红色实线
     case 'bus':
-      return Color.DARKORANGE.withAlpha(0.9);
-    case 'boat':
-      return new PolylineDashMaterialProperty({
-        color: Color.ROYALBLUE,
-        dashLength: 20.0,
-        dashPattern: 0x0F0F // Muster für Strich-Punkt-Linie o.ä.
-      });
-    case 'bicycle':
-      return new PolylineDashMaterialProperty({
-        color: Color.LIMEGREEN,
-        dashLength: 8.0,
-        gapColor: Color.TRANSPARENT, // Um echte Lücken zu erzeugen
-        dashPattern: 0b1111000011110000 // 0xF0F0
-      });
+      return Color.DARKORANGE.withAlpha(0.9); // 巴士：橙色实线
     case 'walk':
-       return new PolylineDashMaterialProperty({
-        color: Color.SANDYBROWN,
-        dashLength: 6.0,
-        gapColor: Color.TRANSPARENT,
-        dashPattern: 0b1010101010101010 // 0xAAAA
-      });
+      return Color.MAGENTA.withAlpha(0.9); // 步行：洋红色实线
     default:
-      return Color.ORANGE.withAlpha(0.8); // Standardfarbe
+      return Color.ORANGE.withAlpha(0.8); // 默认颜色
   }
 };
 
-// 获取交通工具图标的函数
+// 获取交通工具图标的函数（简化为5种主要交通方式）
 const getTransportIcon = (transportMode) => {
   let IconComponent;
   switch (transportMode) {
     case 'plane':
       IconComponent = FaPlane;
-      break;
-    case 'train':
-      IconComponent = FaTrain;
       break;
     case 'car':
       IconComponent = FaCar;
@@ -72,12 +47,7 @@ const getTransportIcon = (transportMode) => {
     case 'bus':
       IconComponent = FaBus;
       break;
-    case 'boat':
-      IconComponent = FaShip;
-      break;
-    case 'bicycle':
-      IconComponent = FaBicycle;
-      break;
+
     case 'walk':
       IconComponent = FaWalking;
       break;
@@ -85,11 +55,11 @@ const getTransportIcon = (transportMode) => {
       IconComponent = FaHome;
       break;
     default:
-      IconComponent = MdOutlineQuestionMark;
+      IconComponent = FaHome; // 默认使用汽车图标
   }
   
-  // 将 React 组件转换为 SVG 字符串，并设置颜色为红色
-  const svgString = renderToStaticMarkup(<IconComponent size={24} color="#ff0000" />);
+  // 将 React 组件转换为 SVG 字符串，并设置颜色为醒目的橙红色
+  const svgString = renderToStaticMarkup(<IconComponent size={24} color="#ff4500" />);
   // 将 SVG 字符串转换为 data URL
   return `data:image/svg+xml;base64,${btoa(svgString)}`;
 };
@@ -99,10 +69,11 @@ const getTransportIconStyle = (isHighlighted = false) => {
   return {
     scale: isHighlighted ? 1.5 : 1.0,
     color: isHighlighted 
-      ? Color.fromCssColorString('#ff4500').withAlpha(1.0)
-      : Color.fromCssColorString('#ff0000').withAlpha(1.0),
+      ? Color.fromCssColorString('#ff1493').withAlpha(1.0) // 高亮：深粉色
+      : Color.fromCssColorString('#ff4500').withAlpha(1.0), // 正常：橙红色
     verticalOrigin: VerticalOrigin.BOTTOM,
     heightReference: HeightReference.CLAMP_TO_GROUND,
+    disableDepthTestDistance: 1000000, // 中层，在一定距离内可见
     scaleByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4),
     translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
   };
@@ -143,12 +114,91 @@ const CesiumMap = ({ currentLayer }) => {
   const [currentPhotoCity, setCurrentPhotoCity] = useState(null);
   const [waitingForPhotos, setWaitingForPhotos] = useState(false);
 
+  // 真实路径相关状态
+  const [realRoutes, setRealRoutes] = useState({});
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [loadedCitiesHash, setLoadedCitiesHash] = useState(''); // 缓存已加载的城市hash
+
+  // 加载真实路径数据
+  const loadRealRoutes = useCallback(async (citiesData) => {
+    if (!citiesData || citiesData.length < 2) {
+      setRealRoutes({});
+      setLoadedCitiesHash('');
+      return;
+    }
+
+    // 生成城市数据的hash来判断是否需要重新加载，添加版本号确保巴士路径更新
+    const API_VERSION = "v2_bus_fix"; // 更新版本号强制刷新巴士路径
+    const currentHash = API_VERSION + JSON.stringify(citiesData.map(city => ({
+      name: city.name,
+      coordinates: city.coordinates,
+      transportMode: city.transportMode
+    })));
+    
+    // 如果数据没有变化，跳过加载
+    if (currentHash === loadedCitiesHash && Object.keys(realRoutes).length > 0) {
+      console.log('✅ 城市数据未变化，使用缓存的路径数据');
+      return;
+    }
+
+    // 避免重复加载
+    if (loadingRoutes) {
+      console.log('⏸️ 路径加载中，跳过重复请求');
+      return;
+    }
+
+    setLoadingRoutes(true);
+    console.log('🚀 开始加载真实路径数据...');
+    
+    try {
+      const sortedCities = getSortedCitiesForTour ? getSortedCitiesForTour() : citiesData;
+      const routes = await getBatchRealRoutes(sortedCities);
+      
+      // 坐标转换：GCJ-02 -> WGS84
+      const transformedRoutes = transformRouteData(routes);
+      setRealRoutes(transformedRoutes);
+      
+      // 减少调试输出，只显示转换效果示例
+      const routeKeys = Object.keys(routes);
+      if (routeKeys.length > 0) {
+        const firstKey = routeKeys[0];
+        if (routes[firstKey] && transformedRoutes[firstKey]) {
+          debugCoordinateTransform(routes[firstKey], transformedRoutes[firstKey], firstKey);
+        }
+      }
+      
+      console.log(`✅ 路径数据加载完成，共 ${routeKeys.length} 条路径，坐标已转换为WGS84`);
+      
+      // 更新缓存hash
+      setLoadedCitiesHash(currentHash);
+    } catch (error) {
+      console.error('❌ 加载真实路径失败:', error);
+      // 失败时清空路径数据，将使用直线路径
+      setRealRoutes({});
+      setLoadedCitiesHash('');
+    } finally {
+      setLoadingRoutes(false);
+    }
+  }, [getSortedCitiesForTour]);
+
+  // 当城市数据变化时重新加载路径
+  useEffect(() => {
+    if (cities && cities.length > 1) {
+      // 只在有效的城市数据时加载
+      loadRealRoutes(cities);
+    } else {
+      // 城市数据不足时清空路径
+      setRealRoutes({});
+      setLoadedCitiesHash('');
+    }
+  }, [cities, loadRealRoutes]);
+
   // 添加显示所有交通工具图标和路线的函数
   const displayTransportIconsAndRoutes = useCallback(() => {
     if (!viewerRef.current?.cesiumElement) return;
     
     const viewer = viewerRef.current.cesiumElement;
-    const transportModes = ['plane', 'train', 'car', 'bus', 'boat', 'bicycle', 'walk'];
+    const transportModes = ['plane', 'car', 'bus', 'walk'];
     
     // 清除现有的实体
     viewer.entities.removeAll();
@@ -371,7 +421,7 @@ const CesiumMap = ({ currentLayer }) => {
                 console.log('相机到位，开始图标移动');
                 // 第二阶段：启动图标移动，相机保持不动
                 const iconMovementDuration = phaseDuration * 1.6; // 增加图标移动时间占比
-                startMovingIconAlongTrajectory(fromCity, toCity, toCity.transportMode, iconMovementDuration);
+                startMovingIconAlongTrajectory(fromCity, toCity, toCity.transportMode, iconMovementDuration, tourIndex);
                 
                 // 等待图标移动完成
                 const timeout2 = setTimeout(() => {
@@ -505,17 +555,14 @@ const CesiumMap = ({ currentLayer }) => {
   const createMovingIcon = (fromCity, toCity, transportMode, viewer, duration) => {
     if (!fromCity || !toCity || !viewer) return null;
 
-    // 调整图标高度，确保在概览视角下可见
-    const iconHeight = 20000; // 降低高度到20km，与城市点相同
+    // 移动图标贴地，但在最上层
     const startPosition = Cartesian3.fromDegrees(
       fromCity.coordinates.lon,
-      fromCity.coordinates.lat,
-      iconHeight
+      fromCity.coordinates.lat
     );
     const endPosition = Cartesian3.fromDegrees(
       toCity.coordinates.lon,
-      toCity.coordinates.lat,
-      iconHeight
+      toCity.coordinates.lat
     );
 
     // 创建移动实体
@@ -524,21 +571,21 @@ const CesiumMap = ({ currentLayer }) => {
       position: startPosition, // 初始位置
       billboard: {
         image: getTransportIcon(transportMode),
-        scale: 1.0, // 增大移动图标的尺寸
+        scale: 0.8, // 调小移动图标的尺寸
         color: Color.WHITE,
         verticalOrigin: VerticalOrigin.BOTTOM,
-        heightReference: HeightReference.NONE,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        scaleByDistance: new NearFarScalar(1.5e6, 3.0, 10.0e6, 1.2), // 调整缩放范围
-        translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.4)
+        heightReference: HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY, // 最上层，永远可见
+        scaleByDistance: new NearFarScalar(1.5e6, 2.0, 10.0e6, 0.8),
+        translucencyByDistance: new NearFarScalar(1.5e6, 1.0, 10.0e6, 0.6)
       }
     };
 
-    return { entity: movingEntity, startPosition, endPosition, duration, iconHeight };
+    return { entity: movingEntity, startPosition, endPosition, duration };
   };
 
   // 启动移动图标，严格沿着轨迹线移动
-  const startMovingIconAlongTrajectory = (fromCity, toCity, transportMode, duration) => {
+  const startMovingIconAlongTrajectory = (fromCity, toCity, transportMode, duration, currentTourIndex = tourIndex) => {
     if (!viewerRef.current?.cesiumElement || !isTouring) return;
     
     const viewer = viewerRef.current.cesiumElement;
@@ -564,10 +611,58 @@ const CesiumMap = ({ currentLayer }) => {
       setMovingIcon(iconData.entity);
       setCurrentTransportMode(transportMode);
       
-      // 使用与PolylineGraphics完全相同的路径计算方法
-      // PolylineGraphics使用 Cartesian3.fromDegreesArray 来创建路径
-      const steps = 60; // 减少动画步数，加快速度
+      // 获取真实路径或使用直线路径
+      const sortedCities = getSortedCitiesForTour();
+      
+      // 使用当前的tourIndex来确定路径键
+      const currentRouteIndex = currentTourIndex;
+      const routeKey = `${currentRouteIndex}-${currentRouteIndex + 1}`;
+      
+      // 调试信息
+      console.log('移动图标路径查找:');
+      console.log('- fromCity:', fromCity.name);
+      console.log('- toCity:', toCity.name);
+             console.log('- tourIndex:', currentTourIndex);
+      console.log('- 使用路径键:', routeKey);
+      console.log('- 可用路径数据:', Object.keys(realRoutes));
+      
+      const realRoute = realRoutes[routeKey];
+      console.log('- 找到路径:', !!realRoute, realRoute ? `(${realRoute.length}个点)` : '');
+      
+      let routeCoordinates = [];
+      if (realRoute && realRoute.length >= 2) {
+        // 使用真实路径数据（已经过坐标转换）- 允许2个点的路径
+        routeCoordinates = realRoute.map(coord => ({
+          lon: coord[0],
+          lat: coord[1]
+        }));
+        console.log(`✅ 使用真实路径 ${routeKey}，共 ${routeCoordinates.length} 个点 (WGS84坐标)`);
+        if (routeCoordinates.length <= 3) {
+          console.log('完整路径数据:', routeCoordinates);
+        } else {
+          console.log('路径起点:', routeCoordinates[0]);
+          console.log('路径终点:', routeCoordinates[routeCoordinates.length - 1]);
+          // 显示路径中间几个点来验证数据
+          const midIndex = Math.floor(routeCoordinates.length / 2);
+          console.log('路径中点:', routeCoordinates[midIndex]);
+        }
+      } else {
+        // 使用城市坐标作为直线路径
+        routeCoordinates = [
+          { lon: fromCity.coordinates.lon, lat: fromCity.coordinates.lat },
+          { lon: toCity.coordinates.lon, lat: toCity.coordinates.lat }
+        ];
+        console.log(`⚠️ 使用城市直线路径 ${routeKey}，路径数据不可用或为空`);
+      }
+      
+      // 智能调整步数：短路径少步数，长路径也不会太多步数
+      const steps = routeCoordinates.length <= 3 
+        ? 60  // 直线或短路径：60步
+        : 120; // 真实路径：120步，无论多少个点
       const stepDuration = (duration * 1000) / steps; // 每步的时间（毫秒）
+      // 移动图标贴地移动
+      
+      console.log(`🚀 动画参数: 路径${routeCoordinates.length}点 → ${steps}步, 每步${stepDuration.toFixed(1)}ms, 总时长${duration}s`);
       let currentStep = 0;
       
       // 设置动画运行标志
@@ -587,42 +682,52 @@ const CesiumMap = ({ currentLayer }) => {
         
         const progress = currentStep / steps;
         
-        // *** 关键修复：使用与PolylineGraphics完全相同的路径计算方法 ***
-        // PolylineGraphics 内部使用 Cartesian3.fromDegreesArray，然后 Cesium 会自动计算地球曲面上的大圆路径
-        // 我们需要模拟这个过程，计算大圆路径上的中间点
+        // 根据progress计算当前应该在路径的哪个位置
+        let currentLon, currentLat;
         
-        const startLon = CesiumMath.toRadians(fromCity.coordinates.lon);
-        const startLat = CesiumMath.toRadians(fromCity.coordinates.lat);
-        const endLon = CesiumMath.toRadians(toCity.coordinates.lon);
-        const endLat = CesiumMath.toRadians(toCity.coordinates.lat);
+        if (routeCoordinates.length <= 2) {
+          // 直线路径：简单插值
+          const startCoord = routeCoordinates[0];
+          const endCoord = routeCoordinates[routeCoordinates.length - 1];
+          
+          currentLon = startCoord.lon + (endCoord.lon - startCoord.lon) * progress;
+          currentLat = startCoord.lat + (endCoord.lat - startCoord.lat) * progress;
+        } else {
+          // 真实路径：沿着路径点插值
+          const totalSegments = routeCoordinates.length - 1;
+          const targetSegmentFloat = progress * totalSegments;
+          const targetSegment = Math.floor(targetSegmentFloat);
+          const segmentProgress = targetSegmentFloat - targetSegment;
+          
+          // 防止索引超出范围
+          const fromIdx = Math.min(targetSegment, routeCoordinates.length - 2);
+          const toIdx = Math.min(fromIdx + 1, routeCoordinates.length - 1);
+          
+          const fromCoord = routeCoordinates[fromIdx];
+          const toCoord = routeCoordinates[toIdx];
+          
+          // 在当前路径段内插值
+          currentLon = fromCoord.lon + (toCoord.lon - fromCoord.lon) * segmentProgress;
+          currentLat = fromCoord.lat + (toCoord.lat - fromCoord.lat) * segmentProgress;
+          
+          // 偶尔输出调试信息
+          if (currentStep % 20 === 0) {
+            console.log(`🎯 图标沿轨迹移动: 进度${Math.round(progress * 100)}%, 段${fromIdx}-${toIdx}, 坐标(${currentLon.toFixed(4)}, ${currentLat.toFixed(4)}), 贴地移动`);
+          }
+        }
         
-        // 使用球面线性插值 (Spherical Linear Interpolation) 计算大圆路径上的点
-        // 这与 Cesium 的 PolylineGraphics 使用的方法相同
-        const startCartesian = Cartesian3.fromRadians(startLon, startLat);
-        const endCartesian = Cartesian3.fromRadians(endLon, endLat);
-        
-        // 使用 Cesium 的球面线性插值
-        const interpolatedCartesian = new Cartesian3();
-        Cartesian3.lerp(startCartesian, endCartesian, progress, interpolatedCartesian);
-        
-        // 转换回经纬度
-        const cartographic = viewer.scene.globe.ellipsoid.cartesianToCartographic(interpolatedCartesian);
-        const currentLon = CesiumMath.toDegrees(cartographic.longitude);
-        const currentLat = CesiumMath.toDegrees(cartographic.latitude);
-        
-        // 创建最终位置（添加高度）
+        // 创建最终位置（贴地）
         const currentPosition = Cartesian3.fromDegrees(
           currentLon, 
-          currentLat, 
-          iconData.iconHeight || 20000
+          currentLat
         );
         
         // 使用更可靠的实体更新方式
         const entity = viewer.entities.getById('moving-transport-icon');
         if (entity && animationRunning.current && isTouring) {
           entity.position = currentPosition;
-          if (currentStep % 20 === 0) { // 每20步打印一次调试信息
-            console.log('图标沿轨迹移动:', Math.round(progress * 100) + '%');
+          if (currentStep % 15 === 0) { // 每15步打印一次调试信息
+            console.log('📍 图标移动进度:', Math.round(progress * 100) + '%');
           }
         } else if (!entity && animationRunning.current && isTouring) {
           console.error('图标实体丢失，尝试重新创建');
@@ -761,7 +866,24 @@ const CesiumMap = ({ currentLayer }) => {
   };
 
   return (
-    <div id="cesiumContainer" style={{ width: '100%', height: '100%' }}>
+    <div id="cesiumContainer" style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* 加载真实路径的指示器 */}
+      {loadingRoutes && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          background: 'rgba(0, 0, 0, 0.7)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          zIndex: 1000
+        }}>
+          正在加载真实路径数据...
+        </div>
+      )}
+      
       <Viewer
         ref={viewerRef}
         style={{ width: '100%', height: '100%' }}
@@ -825,30 +947,40 @@ const CesiumMap = ({ currentLayer }) => {
               return null; // Don't render this polyline
             }
             let material = getPolylineMaterial(nextCity.transportMode);
-            // Hervorhebung der aktiven Route im Tour-Modus
-            // Die aktive Route ist die vom aktuellen `tourIndex` zum `(tourIndex + 1) % sortedCities.length`
+            // 在轨迹浏览模式下高亮当前路径
             if (isTouring && index === tourIndex) { 
-              if (nextCity.transportMode === 'plane' || nextCity.transportMode === 'boat' || 
-                  nextCity.transportMode === 'bicycle' || nextCity.transportMode === 'walk') {
-                 material = new PolylineDashMaterialProperty({
-                    color: Color.YELLOW, 
-                    dashLength: material.dashLength?.getValue() || 16.0, 
-                    dashPattern: material.dashPattern?.getValue() || 255
-                 });
-              } else {
-                material = Color.YELLOW.withAlpha(1.0);
-              }
+              // 所有路径都使用实线高亮
+              material = Color.ORANGE.withAlpha(1.0);
+            }
+
+            // 获取真实路径或使用直线路径
+            const routeKey = `${index}-${index + 1}`;
+            const realRoute = realRoutes[routeKey];
+            
+            let positions;
+            if (realRoute && realRoute.length > 2) {
+              // 使用真实路径数据
+              const coords = [];
+              realRoute.forEach(coord => {
+                coords.push(coord[0], coord[1]); // [lon, lat]
+              });
+              positions = Cartesian3.fromDegreesArray(coords);
+            } else {
+              // 使用直线路径（原来的逻辑）
+              positions = Cartesian3.fromDegreesArray([
+                city.coordinates.lon, city.coordinates.lat,
+                nextCity.coordinates.lon, nextCity.coordinates.lat,
+              ]);
             }
 
             return (
               <Entity key={`route-${city.id || index}-${nextCity.id || (index + 1)}`}>
                 <PolylineGraphics
-                  positions={Cartesian3.fromDegreesArray([
-                    city.coordinates.lon, city.coordinates.lat,
-                    nextCity.coordinates.lon, nextCity.coordinates.lat,
-                  ])}
-                  width={nextCity.transportMode === 'plane' ? 4 : 3}
+                  positions={positions}
+                  width={nextCity.transportMode === 'plane' ? 6 : 5}
                   material={material}
+                  clampToGround={true}
+                  depthFailMaterial={material}
                 />
               </Entity>
             );
