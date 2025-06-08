@@ -159,31 +159,34 @@ const CesiumMap = ({ currentLayer }) => {
     const tdtUrl = 'https://t{s}.tianditu.gov.cn/';
     const subdomains = ['0', '1', '2', '3', '4', '5', '6', '7'];
     
-    // 移除所有现有图层
-    layers.removeAll();
-    
     // 根据选择的图层类型添加相应的图层
     switch (layer) {
-      case 'BingMapsRoad':
-        // Bing 道路地图
-        const layer_1 = layers.addImageryProvider(
-          await IonImageryProvider.fromAssetId(4)
-        );
-        // 重置为默认地形
-        viewer.terrainProvider = new EllipsoidTerrainProvider();
-        break;
-        
-      case 'onlylabel':
-        // Bing 标签地图
-        const labelLayer = layers.addImageryProvider(
-          await IonImageryProvider.fromAssetId(2411391)
-        );
+      case 'tianditu-vector':
+        // 天地图矢量地图
+        layers.removeAll();
+        // 矢量底图
+        const vecProvider = new UrlTemplateImageryProvider({
+            url: tdtUrl + 'DataServer?T=vec_w&x={x}&y={y}&l={z}&tk=' + token,
+            subdomains: subdomains,
+            tilingScheme: new WebMercatorTilingScheme(),
+            maximumLevel: 18
+        });
+        layers.addImageryProvider(vecProvider);
+        // 矢量注记
+        const cvaProvider = new UrlTemplateImageryProvider({
+            url: tdtUrl + 'DataServer?T=cva_w&x={x}&y={y}&l={z}&tk=' + token,
+            subdomains: subdomains,
+            tilingScheme: new WebMercatorTilingScheme(),
+            maximumLevel: 18
+        });
+        layers.addImageryProvider(cvaProvider);
         // 重置为默认地形
         viewer.terrainProvider = new EllipsoidTerrainProvider();
         break;
         
       case 'nightEarth':
         // 夜间灯光图
+        layers.removeAll();
         const layer_2 = layers.addImageryProvider(
           await IonImageryProvider.fromAssetId(3812)
         );
@@ -193,6 +196,7 @@ const CesiumMap = ({ currentLayer }) => {
         
       case 'tianditu':
         // 天地图
+        layers.removeAll();
         // 加入影像
         const img = new UrlTemplateImageryProvider({
           url: tdtUrl + 'DataServer?T=img_w&x={x}&y={y}&l={z}&tk=' + token,
@@ -225,6 +229,7 @@ const CesiumMap = ({ currentLayer }) => {
         
       case 'gaode':
         // 高德地图
+        layers.removeAll();
         const gaodeMap = new UrlTemplateImageryProvider({
           url: "https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
         });
@@ -271,14 +276,6 @@ const CesiumMap = ({ currentLayer }) => {
     // viewer.scene.screenSpaceCameraController.enableTilt = false;
     // viewer.scene.screenSpaceCameraController.enableLook = false;
   }, []);
-
-  // 初始化 viewer 后设置默认底图
-  useEffect(() => {
-    if (viewerRef.current && viewerRef.current.cesiumElement) {
-      // 设置默认底图
-      switchLayer('BingMapsRoad');
-    }
-  }, [viewerRef.current]);
 
   // 处理选中城市变化时的视角飞行
   useEffect(() => {

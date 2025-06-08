@@ -1,14 +1,13 @@
 import React from 'react';
 import { Card, Switch, Space, Tooltip } from 'antd';
-import { FaGlobe, FaMoon, FaMapMarkedAlt, FaMap, FaMapSigns } from 'react-icons/fa';
+import { FaGlobe, FaMoon, FaMapMarkedAlt, FaMap, FaMapSigns, FaHome } from 'react-icons/fa';
 
 const LayerSwitcher = ({ onSwitchLayer, currentLayer }) => {
   // 图层配置
   const layers = [
-    { id: 'BingMapsRoad', name: 'Bing 道路地图', icon: <FaMap />, description: '微软 Bing 地图道路图层' },
+    { id: 'tianditu-vector', name: '天地图-矢量', icon: <FaMap />, description: '天地图矢量地图服务' },
     { id: 'nightEarth', name: '夜间灯光图', icon: <FaMoon />, description: '夜间地球灯光图层' },
-    { id: 'onlylabel', name: '标签地图', icon: <FaMapMarkedAlt />, description: '仅显示地名标签的地图' },
-    { id: 'tianditu', name: '天地图', icon: <FaGlobe />, description: '中国国家地理信息公共服务平台' },
+    { id: 'tianditu', name: '天地图-影像', icon: <FaGlobe />, description: '天地图影像地图服务' },
     { id: 'gaode', name: '高德地图', icon: <FaMapSigns />, description: '高德地图路网图层' }
   ];
 

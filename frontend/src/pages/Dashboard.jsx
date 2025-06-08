@@ -15,7 +15,7 @@ import '../styles/Dashboard.css';
 const Dashboard = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showPhotoOverlay, setShowPhotoOverlay] = useState(false);
-  const [currentLayer, setCurrentLayer] = useState('BingMapsRoad');
+  const [currentLayer, setCurrentLayer] = useState(null);
   const navigate = useNavigate();
   const { cities, currentCityIndex } = useTravelContext();
 
