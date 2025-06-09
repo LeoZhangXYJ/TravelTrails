@@ -54,5 +54,13 @@
     "disabled": false,
     "age": null,
     "travel_trails": []
+  },
+  "junhao12": {
+    "username": "junhao12",
+    "email": "3230103238@zju.edu.cn",
+    "password": "111",
+    "disabled": false,
+    "age": null,
+    "travel_trails": []
   }
 }

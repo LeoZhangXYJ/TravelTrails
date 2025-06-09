@@ -17,7 +17,7 @@ const Dashboard = () => {
   const [showPhotoOverlay, setShowPhotoOverlay] = useState(false);
   const [currentLayer, setCurrentLayer] = useState(null);
   const navigate = useNavigate();
-  const { cities, currentCityIndex } = useTravelContext();
+  const { cities, currentCityIndex, isTouring } = useTravelContext();
 
   const currentSidebarWidth = isSidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
   const currentCity = currentCityIndex >= 0 ? cities[currentCityIndex] : null;
@@ -33,10 +33,15 @@ const Dashboard = () => {
 
   // 当城市改变时，自动显示照片
   useEffect(() => {
+    // 在轨迹浏览模式下，照片由CesiumMap组件控制，此处不处理
+    if (isTouring) {
+      setShowPhotoOverlay(false); // 确保在浏览时此处的覆盖层是关闭的
+      return;
+    }
     if (currentCity && currentCity.photos && currentCity.photos.length > 0) {
       setShowPhotoOverlay(true);
     }
-  }, [currentCityIndex]);
+  }, [currentCityIndex, isTouring]);
 
   return (
     <div className="dashboard">
